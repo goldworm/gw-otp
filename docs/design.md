@@ -15,14 +15,17 @@ GW-OTP는 TOTP(Time-based One-Time Password) 코드를 관리하는 크롬 확�
 | 5 | 보안 | 마스터 비밀번호 암호화, 세션 기반 잠금 + 수동 잠금 |
 | 6 | 편의 기능 | 클립보드 복사, 카운트다운 표시, 내보내기/가져오기 |
 | 7 | 프라이버시 | 마우스 hover 시에만 OTP 코드 표시 (설정 토글) |
-| 8 | 코드 컨벤션 | 모든 파일명 kebab-case |
-| 9 | 테스트 | Vitest 사용 |
+| 8 | 테마 | 라이트/다크/시스템 테마 전환 지원 |
+| 9 | 코드 컨벤션 | 모든 파일명 kebab-case |
+| 10 | 테스트 | Vitest 사용 |
 
 ## 3. 기술 스택
 
 | 영역 | 기술 |
 |------|------|
 | UI 프레임워크 | React 19, TypeScript |
+| 스타일링 | Tailwind CSS |
+| UI 컴포넌트 | shadcn/ui (Radix UI 기반) |
 | 빌드 도구 | Vite |
 | Chrome Extension 빌드 | @crxjs/vite-plugin |
 | OTP 생성 | otplib |
@@ -33,6 +36,42 @@ GW-OTP는 TOTP(Time-based One-Time Password) 코드를 관리하는 크롬 확�
 | Manifest 버전 | Chrome Extension Manifest V3 |
 
 ## 4. 아키텍처
+
+### 4.1 레이어 분리 원칙
+
+Core 레이어와 UI 레이어를 엄격히 격리한다. 이를 통해 UI 프레임워크를 교체하더라도 비즈니스 로직은 그대로 재사용할 수 있다.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  UI Layer (React + Tailwind + shadcn/ui)                    │
+│  - 순수 표현 로직, 사용자 인터랙션 처리                        │
+│  - Core에 의존하되, Core는 UI에 의존하지 않음                  │
+├─────────────────────────────────────────────────────────────┤
+│  Core Layer (순수 TypeScript, UI 무관)                       │
+│  - crypto, storage, otp, qr, backup                         │
+│  - React, DOM, Tailwind 등 UI 관련 import 금지              │
+│  - 브라우저 API(chrome.*)만 의존                             │
+├─────────────────────────────────────────────────────────────┤
+│  Background Layer (Service Worker)                          │
+│  - Core를 사용하여 세션/키 관리                               │
+│  - 메시지 기반 인터페이스 제공                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**규칙:**
+- `src/core/` 내 파일은 `react`, `react-dom`, CSS, Tailwind, shadcn/ui를 import하지 않는다.
+- `src/core/` 는 순수 TypeScript 함수/클래스만 포함하며, 모든 외부 의존은 인자로 주입받는다 (예: `chrome.storage`는 인터페이스로 추상화 가능).
+- UI 레이어(`src/popup/`)는 Core의 함수를 호출하여 데이터를 가공하고, 결과를 렌더링하는 역할만 담당한다.
+- Background 레이어(`src/background/`)는 Core를 직접 사용하며, Popup과는 메시지로만 통신한다.
+
+**의존 방향:**
+```
+UI (popup) ──► Core ◄── Background
+     │                       │
+     └───── Messages ────────┘
+```
+
+### 4.2 시스템 구조도
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -173,6 +212,8 @@ interface Tag {
 interface Settings {
   /** hover 시에만 OTP 코드 표시 */
   hideCodesUntilHover: boolean;
+  /** 테마 설정 */
+  theme: 'light' | 'dark' | 'system';
   /** 마스터 비밀번호 해시 (검증용) */
   passwordHash: string;
   /** PBKDF2 salt (Base64) */
@@ -230,6 +271,7 @@ App
    │  └─ 저장/취소 버튼
    │
    └─ SettingsPage         (설정)
+      ├─ 테마: 라이트 / 다크 / 시스템 선택
       ├─ 프라이버시: hover 마스킹 토글
       ├─ 내보내기 버튼
       └─ 가져오기 버튼
@@ -454,7 +496,63 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 - 남은 시간이 0이 되면 새 코드 생성
 - CountdownBar는 `(remainingSeconds / period) * 100`%로 너비 표시
 
-## 13. QR 인식 흐름
+## 13. 테마 시스템
+
+### 테마 옵션
+
+| 옵션 | 동작 |
+|------|------|
+| `light` | 항상 라이트 모드 |
+| `dark` | 항상 다크 모드 |
+| `system` | OS 설정에 따라 자동 전환 (`prefers-color-scheme`) |
+
+### 구현 방식
+
+Tailwind CSS의 `darkMode: 'class'` 전략을 사용한다.
+
+```typescript
+// src/popup/hooks/use-theme.ts
+type Theme = 'light' | 'dark' | 'system';
+
+function useTheme() {
+  // 1. Settings에서 저장된 테마 로드
+  // 2. 'system'이면 matchMedia('(prefers-color-scheme: dark)') 감지
+  // 3. <html> 요소에 'dark' class 추가/제거
+}
+```
+
+### CSS 변수 (shadcn/ui 기반)
+
+shadcn/ui는 CSS 변수 기반 테마를 사용한다. `globals.css`에 라이트/다크 변수를 정의:
+
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  /* ... */
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  /* ... */
+}
+```
+
+### Settings 페이지 UI
+
+라디오 버튼 또는 세그먼트 컨트롤로 3가지 옵션 선택:
+- ☀️ 라이트
+- 🌙 다크
+- 💻 시스템
+
+선택 즉시 적용 + `chrome.storage.sync`에 저장.
+
+## 14. QR 인식 흐름
 
 ### 13.1 이미지 업로드
 
@@ -503,7 +601,7 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 - `activeTab`: 현재 탭 캡처를 위해 필요
 - 사용자가 팝업에서 버튼을 클릭하는 시점에만 권한 활성화
 
-## 14. 내보내기/가져오기 포맷
+## 15. 내보내기/가져오기 포맷
 
 ### 파일 확장자
 
@@ -551,7 +649,7 @@ interface BackupFile {
 7. 현재 마스터 비밀번호로 재암호화하여 저장
 ```
 
-## 15. 테스트 전략
+## 16. 테스트 전략
 
 ### 테스트 프레임워크
 
@@ -589,7 +687,7 @@ pnpm test tests/core/crypto.test.ts
 pnpm test --watch
 ```
 
-## 16. Manifest 설정
+## 17. Manifest 설정
 
 ```json
 {
@@ -622,7 +720,7 @@ pnpm test --watch
 }
 ```
 
-## 17. 구현 순서
+## 18. 구현 순서
 
 1. 프로젝트 구조 전환 (Vite + @crxjs/vite-plugin + Vitest)
 2. 암호화 모듈 (`crypto.ts`)
