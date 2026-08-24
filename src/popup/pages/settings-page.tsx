@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
+  KeyRound,
   ArrowLeft,
   Sun,
   Moon,
@@ -26,18 +27,21 @@ import {
   decryptBackup,
   importBackup,
 } from '@/core/backup';
-import type { Settings, Tag, Theme } from '@/types';
+import { deriveKey, base64ToBuffer } from '@/core/crypto';
+import type { MessageResponse, Settings, Tag, Theme } from '@/types';
 
 interface SettingsPageProps {
   sessionKey: CryptoKey;
   onBack: () => void;
   onThemeChange: (theme: Theme) => void;
+  onPasswordChanged: (newKey: CryptoKey) => void;
 }
 
 export function SettingsPage({
   sessionKey,
   onBack,
   onThemeChange,
+  onPasswordChanged,
 }: SettingsPageProps) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,14 @@ export function SettingsPage({
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 비밀번호 변경 전용 상태
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [pwMessage, setPwMessage] = useState('');
+  const [pwError, setPwError] = useState('');
 
   useEffect(() => {
     Promise.all([loadSettings(), loadTags()]).then(([s, t]) => {
@@ -159,6 +171,64 @@ export function SettingsPage({
     }
   }
 
+  // 비밀번호 변경
+  async function handleChangePassword() {
+    setPwError('');
+    setPwMessage('');
+
+    if (!currentPassword) {
+      setPwError('현재 비밀번호를 입력하세요.');
+      return;
+    }
+    if (!newPassword) {
+      setPwError('새 비밀번호를 입력하세요.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPwError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response: MessageResponse = await chrome.runtime.sendMessage({
+        type: 'changePassword',
+        currentPassword,
+        newPassword,
+      });
+
+      if (response.type === 'changePassword') {
+        if (response.success) {
+          // Background에서 새 salt로 settings를 갱신했으므로 그 salt로 키 재유도
+          const settings = await loadSettings();
+          if (settings) {
+            const newKey = await deriveKey(
+              newPassword,
+              base64ToBuffer(settings.salt),
+            );
+            onPasswordChanged(newKey);
+          }
+          setPwMessage('비밀번호가 변경되었습니다.');
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+        } else {
+          setPwError(response.error ?? '비밀번호 변경에 실패했습니다.');
+        }
+      }
+    } catch (err) {
+      setPwError(
+        err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.',
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   if (loading || !settings) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
@@ -202,7 +272,6 @@ export function SettingsPage({
             />
           </div>
         </div>
-
         {/* 프라이버시 설정 */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">프라이버시</Label>
@@ -237,7 +306,6 @@ export function SettingsPage({
             </button>
           </div>
         </div>
-
         {/* 태그 관리 */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">태그 관리</Label>
@@ -304,8 +372,61 @@ export function SettingsPage({
             </div>
           </div>
         </div>
-
-        {/* 내보내기 */}
+        {/* 비밀번호 변경 */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">비밀번호 변경</Label>
+          <div className="space-y-2 rounded-lg border p-3">
+            <Input
+              type="password"
+              placeholder="현재 비밀번호"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="h-8 text-xs"
+              autoComplete="current-password"
+            />
+            <Input
+              type="password"
+              placeholder="새 비밀번호"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="h-8 text-xs"
+              autoComplete="new-password"
+            />
+            <Input
+              type="password"
+              placeholder="새 비밀번호 확인"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="h-8 text-xs"
+              autoComplete="new-password"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleChangePassword();
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={handleChangePassword}
+              disabled={changingPassword}
+            >
+              <KeyRound className="mr-1 h-3.5 w-3.5" />
+              {changingPassword ? '변경 중...' : '비밀번호 변경'}
+            </Button>
+            {pwMessage && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                {pwMessage}
+              </p>
+            )}
+            {pwError && (
+              <p className="text-xs text-destructive" role="alert">
+                {pwError}
+              </p>
+            )}
+          </div>
+        </div>
         <div className="space-y-3">
           <Label className="text-sm font-medium">데이터 내보내기</Label>
           <div className="space-y-2 rounded-lg border p-3">
@@ -330,7 +451,6 @@ export function SettingsPage({
             </Button>
           </div>
         </div>
-
         {/* 가져오기 */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">데이터 가져오기</Label>
@@ -363,7 +483,6 @@ export function SettingsPage({
             </Button>
           </div>
         </div>
-
         {/* 메시지 */}
         {message && (
           <p className="text-sm text-green-600 dark:text-green-400">

@@ -11,6 +11,7 @@
  */
 
 import type { OTPEntry, Tag, Settings, StorageSchema } from '@/types';
+import { encrypt, decrypt } from '@/core/crypto';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -288,4 +289,43 @@ export async function loadAll(): Promise<Partial<StorageSchema>> {
  */
 export async function clearAll(): Promise<void> {
   await chrome.storage.sync.clear();
+}
+
+// ─── Password Change ─────────────────────────────────────────────────────────
+
+/**
+ * 모든 OTP 항목의 encryptedSecret을 기존 키로 복호화한 뒤 새 키로 재암호화하고,
+ * settings의 salt와 passwordHash를 원자적으로 업데이트한다.
+ *
+ * @param oldKey - 현재 마스터 키
+ * @param newKey - 새 마스터 키
+ * @param newSalt - 새 salt (Base64)
+ * @param newPasswordHash - 새 비밀번호 검증 암호문 (Base64)
+ */
+export async function reencryptAllEntries(
+  oldKey: CryptoKey,
+  newKey: CryptoKey,
+  newSalt: string,
+  newPasswordHash: string,
+): Promise<void> {
+  const entries = await loadEntries();
+
+  const reencrypted = await Promise.all(
+    entries.map(async (entry) => {
+      const plainSecret = await decrypt(entry.encryptedSecret, oldKey);
+      const encryptedSecret = await encrypt(plainSecret, newKey);
+      return { ...entry, encryptedSecret, updatedAt: new Date().toISOString() };
+    }),
+  );
+
+  await saveEntries(reencrypted);
+
+  const settings = await loadSettings();
+  if (settings) {
+    await saveSettings({
+      ...settings,
+      salt: newSalt,
+      passwordHash: newPasswordHash,
+    });
+  }
 }

@@ -80,14 +80,21 @@ export type MessageRequest =
   | { type: 'unlock'; password: string }
   | { type: 'lock' }
   | { type: 'getStatus' }
-  | { type: 'getKey' };
+  | { type: 'getKey' }
+  | { type: 'changePassword'; currentPassword: string; newPassword: string };
 
 /** Background → Popup 응답 */
 export type MessageResponse =
   | { type: 'unlock'; success: boolean; error?: string }
   | { type: 'lock'; success: boolean }
   | { type: 'getStatus'; isUnlocked: boolean; isInitialized: boolean }
-  | { type: 'getKey'; key: string | null };
+  | { type: 'getKey'; key: string | null }
+  | {
+      type: 'changePassword';
+      success: boolean;
+      error?: string;
+      newKey?: CryptoKey;
+    };
 
 // ─── Backup ──────────────────────────────────────────────────────────────────
 

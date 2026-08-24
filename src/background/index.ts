@@ -15,8 +15,13 @@ import {
   bufferToBase64,
   base64ToBuffer,
   generateSalt,
+  initializePassword,
 } from '@/core/crypto';
-import { saveSettings, loadSettings } from '@/core/storage';
+import {
+  saveSettings,
+  loadSettings,
+  reencryptAllEntries,
+} from '@/core/storage';
 
 /** 메모리에만 존재하는 세션 키 (디스크에 저장하지 않음) */
 let sessionKey: CryptoKey | null = null;
@@ -104,6 +109,54 @@ function handleGetKey(): { key: string | null } {
 }
 
 /**
+ * 비밀번호 변경: 현재 비밀번호를 검증한 뒤 새 비밀번호로 재설정한다.
+ * 저장된 모든 OTP secret을 새 키로 재암호화하고 세션 키를 갱신한다.
+ */
+async function handleChangePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!isUnlocked || !sessionKey) {
+      return {
+        success: false,
+        error: '잠금 해제 상태에서만 변경할 수 있습니다.',
+      };
+    }
+
+    const settings = await loadSettings();
+    if (!settings) {
+      return { success: false, error: '설정을 불러올 수 없습니다.' };
+    }
+
+    // 현재 비밀번호 검증
+    const oldSaltBytes = base64ToBuffer(settings.salt);
+    const oldKey = await deriveKey(currentPassword, oldSaltBytes);
+    const valid = await verifyPassword(settings.passwordHash, oldKey);
+    if (!valid) {
+      return { success: false, error: '현재 비밀번호가 올바르지 않습니다.' };
+    }
+
+    // 새 salt + 키 생성 및 전체 재암호화
+    const {
+      salt,
+      passwordHash,
+      key: newKey,
+    } = await initializePassword(newPassword);
+    await reencryptAllEntries(oldKey, newKey, salt, passwordHash);
+
+    // 세션 키 갱신
+    sessionKey = newKey;
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * 메시지 핸들러: Popup으로부터의 메시지를 처리한다.
  */
 export function handleMessage(
@@ -132,6 +185,14 @@ export function handleMessage(
     case 'getKey': {
       const result = handleGetKey();
       sendResponse({ type: 'getKey', ...result });
+      break;
+    }
+    case 'changePassword': {
+      handleChangePassword(request.currentPassword, request.newPassword).then(
+        (result) => {
+          sendResponse({ type: 'changePassword', ...result });
+        },
+      );
       break;
     }
   }

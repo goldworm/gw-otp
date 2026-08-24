@@ -133,6 +133,11 @@ export function App() {
     applyTheme(theme);
   }
 
+  // 비밀번호 변경 후 Popup sessionKey 갱신 핸들러
+  function handlePasswordChanged(newKey: CryptoKey) {
+    setSessionKey(newKey);
+  }
+
   // 로딩 중
   if (loading) {
     return (
@@ -200,6 +205,7 @@ export function App() {
           sessionKey={sessionKey}
           onBack={() => setPage('main')}
           onThemeChange={handleThemeChange}
+          onPasswordChanged={handlePasswordChanged}
         />
       );
   }
