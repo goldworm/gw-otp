@@ -1,156 +1,170 @@
-import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Plus, Upload, Camera } from 'lucide-react'
-import { Button } from '@/popup/components/ui/button'
-import { Input } from '@/popup/components/ui/input'
-import { Label } from '@/popup/components/ui/label'
-import { addEntry, loadTags } from '@/core/storage'
-import { encrypt } from '@/core/crypto'
-import { parseOTPAuthURI, normalizeSecret } from '@/core/otp'
-import { decodeQRFromFile, decodeQRFromDataURL } from '@/core/qr'
-import { isMigrationURI, parseMigrationURI } from '@/core/migration'
-import type { Algorithm, Digits, OTPEntry, ParsedOTPAuthURI, Tag } from '@/types'
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Plus, Upload, Camera } from 'lucide-react';
+import { Button } from '@/popup/components/ui/button';
+import { Input } from '@/popup/components/ui/input';
+import { Label } from '@/popup/components/ui/label';
+import { addEntry, loadTags } from '@/core/storage';
+import { encrypt } from '@/core/crypto';
+import { parseOTPAuthURI, normalizeSecret } from '@/core/otp';
+import { decodeQRFromFile, decodeQRFromDataURL } from '@/core/qr';
+import { isMigrationURI, parseMigrationURI } from '@/core/migration';
+import type {
+  Algorithm,
+  Digits,
+  OTPEntry,
+  ParsedOTPAuthURI,
+  Tag,
+} from '@/types';
 
 interface AddOTPPageProps {
-  sessionKey: CryptoKey
-  onBack: () => void
-  onAdded: () => void
+  sessionKey: CryptoKey;
+  onBack: () => void;
+  onAdded: () => void;
 }
 
-type TabMode = 'manual' | 'uri' | 'qr' | 'capture'
+type TabMode = 'manual' | 'uri' | 'qr' | 'capture';
 
 export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
-  const [tabMode, setTabMode] = useState<TabMode>('manual')
-  const [issuer, setIssuer] = useState('')
-  const [label, setLabel] = useState('')
-  const [secret, setSecret] = useState('')
-  const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1')
-  const [digits, setDigits] = useState<Digits>(6)
-  const [period, setPeriod] = useState(30)
-  const [uriInput, setUriInput] = useState('')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [migrationItems, setMigrationItems] = useState<ParsedOTPAuthURI[]>([])
-  const [migrationImporting, setMigrationImporting] = useState(false)
-  const [migrationMessage, setMigrationMessage] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [tabMode, setTabMode] = useState<TabMode>('manual');
+  const [issuer, setIssuer] = useState('');
+  const [label, setLabel] = useState('');
+  const [secret, setSecret] = useState('');
+  const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1');
+  const [digits, setDigits] = useState<Digits>(6);
+  const [period, setPeriod] = useState(30);
+  const [uriInput, setUriInput] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [migrationItems, setMigrationItems] = useState<ParsedOTPAuthURI[]>([]);
+  const [migrationImporting, setMigrationImporting] = useState(false);
+  const [migrationMessage, setMigrationMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadTags().then(setTags)
-  }, [])
+    loadTags().then(setTags);
+  }, []);
 
   // QR 이미지 파일 처리
   async function handleQRFile(e: React.ChangeEvent<HTMLInputElement>) {
-    setError('')
-    setMigrationItems([])
-    setMigrationMessage('')
-    const file = e.target.files?.[0]
-    if (!file) return
+    setError('');
+    setMigrationItems([]);
+    setMigrationMessage('');
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     try {
-      const data = await decodeQRFromFile(file)
-      handleQRData(data)
+      const data = await decodeQRFromFile(file);
+      handleQRData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'QR 코드 인식에 실패했습니다.')
+      setError(
+        err instanceof Error ? err.message : 'QR 코드 인식에 실패했습니다.',
+      );
     }
 
     // input 초기화 (같은 파일 재선택 가능하도록)
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      fileInputRef.current.value = '';
     }
   }
 
   // 화면 캡처 처리
   async function handleCapture() {
-    setError('')
-    setMigrationItems([])
-    setMigrationMessage('')
+    setError('');
+    setMigrationItems([]);
+    setMigrationMessage('');
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       if (!tab?.id) {
-        setError('활성 탭을 찾을 수 없습니다.')
-        return
+        setError('활성 탭을 찾을 수 없습니다.');
+        return;
       }
 
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
         format: 'png',
-      })
+      });
 
-      const data = await decodeQRFromDataURL(dataUrl)
-      handleQRData(data)
+      const data = await decodeQRFromDataURL(dataUrl);
+      handleQRData(data);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : '화면 캡처에 실패했습니다.'
-      )
+        err instanceof Error ? err.message : '화면 캡처에 실패했습니다.',
+      );
     }
   }
 
   // QR/캡처에서 디코딩된 데이터 처리 (otpauth:// 또는 otpauth-migration://)
   function handleQRData(data: string) {
     if (isMigrationURI(data)) {
-      const items = parseMigrationURI(data)
+      const items = parseMigrationURI(data);
       if (items.length === 0) {
-        setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.')
-        return
+        setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.');
+        return;
       }
-      setMigrationItems(items)
-      setTabMode('qr') // QR 탭에서 migration 리스트 표시
+      setMigrationItems(items);
+      setTabMode('qr'); // QR 탭에서 migration 리스트 표시
     } else {
-      const parsed = parseOTPAuthURI(data)
-      setIssuer(parsed.issuer)
-      setLabel(parsed.label)
-      setSecret(parsed.secret)
-      setAlgorithm(parsed.algorithm)
-      setDigits(parsed.digits)
-      setPeriod(parsed.period)
-      setTabMode('manual')
+      const parsed = parseOTPAuthURI(data);
+      setIssuer(parsed.issuer);
+      setLabel(parsed.label);
+      setSecret(parsed.secret);
+      setAlgorithm(parsed.algorithm);
+      setDigits(parsed.digits);
+      setPeriod(parsed.period);
+      setTabMode('manual');
     }
   }
 
   // URI 파싱
   function handleParseURI() {
-    setError('')
-    setMigrationItems([])
-    setMigrationMessage('')
+    setError('');
+    setMigrationItems([]);
+    setMigrationMessage('');
 
-    const input = uriInput.trim()
+    const input = uriInput.trim();
 
     try {
       if (isMigrationURI(input)) {
         // Google Authenticator migration URI
-        const items = parseMigrationURI(input)
+        const items = parseMigrationURI(input);
         if (items.length === 0) {
-          setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.')
-          return
+          setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.');
+          return;
         }
-        setMigrationItems(items)
+        setMigrationItems(items);
       } else {
         // 일반 otpauth:// URI
-        const parsed = parseOTPAuthURI(input)
-        setIssuer(parsed.issuer)
-        setLabel(parsed.label)
-        setSecret(parsed.secret)
-        setAlgorithm(parsed.algorithm)
-        setDigits(parsed.digits)
-        setPeriod(parsed.period)
-        setTabMode('manual')
+        const parsed = parseOTPAuthURI(input);
+        setIssuer(parsed.issuer);
+        setLabel(parsed.label);
+        setSecret(parsed.secret);
+        setAlgorithm(parsed.algorithm);
+        setDigits(parsed.digits);
+        setPeriod(parsed.period);
+        setTabMode('manual');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'URI 파싱에 실패했습니다.')
+      setError(err instanceof Error ? err.message : 'URI 파싱에 실패했습니다.');
     }
   }
 
   // Migration 일괄 등록
   async function handleImportMigration() {
-    setError('')
-    setMigrationImporting(true)
+    setError('');
+    setMigrationImporting(true);
 
     try {
-      let imported = 0
+      let imported = 0;
       for (const item of migrationItems) {
-        const encryptedSecret = await encrypt(normalizeSecret(item.secret), sessionKey)
-        const now = new Date().toISOString()
+        const encryptedSecret = await encrypt(
+          normalizeSecret(item.secret),
+          sessionKey,
+        );
+        const now = new Date().toISOString();
         const entry: OTPEntry = {
           id: crypto.randomUUID(),
           issuer: item.issuer,
@@ -162,44 +176,47 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
           period: item.period,
           createdAt: now,
           updatedAt: now,
-        }
-        await addEntry(entry)
-        imported++
+        };
+        await addEntry(entry);
+        imported++;
       }
-      setMigrationMessage(`${imported}개 OTP 항목을 가져왔습니다.`)
-      setMigrationItems([])
-      setUriInput('')
+      setMigrationMessage(`${imported}개 OTP 항목을 가져왔습니다.`);
+      setMigrationItems([]);
+      setUriInput('');
       // 잠시 후 메인으로
-      setTimeout(() => onAdded(), 1500)
+      setTimeout(() => onAdded(), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.');
     } finally {
-      setMigrationImporting(false)
+      setMigrationImporting(false);
     }
   }
 
   // 저장
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (!issuer.trim()) {
-      setError('서비스명(Issuer)을 입력하세요.')
-      return
+      setError('서비스명(Issuer)을 입력하세요.');
+      return;
     }
     if (!label.trim()) {
-      setError('계정(Label)을 입력하세요.')
-      return
+      setError('계정(Label)을 입력하세요.');
+      return;
     }
     if (!secret.trim()) {
-      setError('Secret을 입력하세요.')
-      return
+      setError('Secret을 입력하세요.');
+      return;
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
-      const encryptedSecret = await encrypt(normalizeSecret(secret), sessionKey)
-      const now = new Date().toISOString()
+      const encryptedSecret = await encrypt(
+        normalizeSecret(secret),
+        sessionKey,
+      );
+      const now = new Date().toISOString();
 
       const entry: OTPEntry = {
         id: crypto.randomUUID(),
@@ -212,14 +229,14 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         period,
         createdAt: now,
         updatedAt: now,
-      }
+      };
 
-      await addEntry(entry)
-      onAdded()
+      await addEntry(entry);
+      onAdded();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -228,8 +245,8 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     setSelectedTags((prev) =>
       prev.includes(tagId)
         ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
-    )
+        : [...prev, tagId],
+    );
   }
 
   return (
@@ -295,12 +312,16 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         {tabMode === 'uri' && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="uri-input">otpauth:// 또는 otpauth-migration:// URI</Label>
+              <Label htmlFor="uri-input">
+                otpauth:// 또는 otpauth-migration:// URI
+              </Label>
               <textarea
                 id="uri-input"
                 value={uriInput}
                 onChange={(e) => setUriInput(e.target.value)}
-                placeholder={"otpauth://totp/Issuer:user@example.com?secret=...\n또는\notpauth-migration://offline?data=..."}
+                placeholder={
+                  'otpauth://totp/Issuer:user@example.com?secret=...\n또는\notpauth-migration://offline?data=...'
+                }
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
@@ -322,8 +343,12 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 <div className="max-h-[200px] space-y-1 overflow-y-auto rounded border p-2">
                   {migrationItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
-                      <span className="font-medium">{item.issuer || '(없음)'}</span>
-                      <span className="text-muted-foreground">{item.label}</span>
+                      <span className="font-medium">
+                        {item.issuer || '(없음)'}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -334,13 +359,17 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                   disabled={migrationImporting}
                 >
                   <Plus className="mr-1 h-4 w-4" />
-                  {migrationImporting ? '가져오는 중...' : `${migrationItems.length}개 모두 가져오기`}
+                  {migrationImporting
+                    ? '가져오는 중...'
+                    : `${migrationItems.length}개 모두 가져오기`}
                 </Button>
               </div>
             )}
 
             {migrationMessage && (
-              <p className="text-sm text-green-600 dark:text-green-400">{migrationMessage}</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {migrationMessage}
+              </p>
             )}
             {error && (
               <p className="text-sm text-destructive" role="alert">
@@ -385,8 +414,12 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 <div className="max-h-[200px] space-y-1 overflow-y-auto rounded border p-2">
                   {migrationItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
-                      <span className="font-medium">{item.issuer || '(없음)'}</span>
-                      <span className="text-muted-foreground">{item.label}</span>
+                      <span className="font-medium">
+                        {item.issuer || '(없음)'}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -397,13 +430,17 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                   disabled={migrationImporting}
                 >
                   <Plus className="mr-1 h-4 w-4" />
-                  {migrationImporting ? '가져오는 중...' : `${migrationItems.length}개 모두 가져오기`}
+                  {migrationImporting
+                    ? '가져오는 중...'
+                    : `${migrationItems.length}개 모두 가져오기`}
                 </Button>
               </div>
             )}
 
             {migrationMessage && (
-              <p className="text-sm text-green-600 dark:text-green-400">{migrationMessage}</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {migrationMessage}
+              </p>
             )}
             {error && (
               <p className="text-sm text-destructive" role="alert">
@@ -422,11 +459,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 현재 보고 있는 웹페이지를 캡처하여 QR 코드를 자동 인식합니다.
               </p>
             </div>
-            <Button
-              type="button"
-              onClick={handleCapture}
-              className="w-full"
-            >
+            <Button type="button" onClick={handleCapture} className="w-full">
               <Camera className="mr-1 h-4 w-4" />
               화면 캡처하여 QR 인식
             </Button>
@@ -555,5 +588,5 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         )}
       </div>
     </div>
-  )
+  );
 }

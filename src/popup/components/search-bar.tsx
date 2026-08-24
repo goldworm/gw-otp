@@ -1,11 +1,11 @@
-import { Search, X } from 'lucide-react'
-import { Input } from '@/popup/components/ui/input'
-import { cn } from '@/popup/lib/utils'
+import { Search, X } from 'lucide-react';
+import { Input } from '@/popup/components/ui/input';
+import { cn } from '@/popup/lib/utils';
 
 interface SearchBarProps {
-  value: string
-  onChange: (value: string) => void
-  className?: string
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
 }
 
 export function SearchBar({ value, onChange, className }: SearchBarProps) {
@@ -30,5 +30,5 @@ export function SearchBar({ value, onChange, className }: SearchBarProps) {
         </button>
       )}
     </div>
-  )
+  );
 }

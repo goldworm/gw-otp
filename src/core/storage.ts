@@ -10,12 +10,12 @@
  * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
  */
 
-import type { OTPEntry, Tag, Settings, StorageSchema } from '@/types'
+import type { OTPEntry, Tag, Settings, StorageSchema } from '@/types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 /** chrome.storage.sync 항목당 최대 바이트 (여유분 확보) */
-const CHUNK_MAX_BYTES = 7000
+const CHUNK_MAX_BYTES = 7000;
 
 /** Storage 키 접두사 */
 const KEYS = {
@@ -23,7 +23,7 @@ const KEYS = {
   TAGS: 'tags',
   ORDER: 'order',
   ENTRIES_PREFIX: 'entries_',
-} as const
+} as const;
 
 // ─── Chunk Utilities ─────────────────────────────────────────────────────────
 
@@ -31,26 +31,26 @@ const KEYS = {
  * OTP 항목 배열을 chrome.storage.sync 크기 제한에 맞게 청크로 분할한다.
  */
 export function splitEntriesIntoChunks(entries: OTPEntry[]): OTPEntry[][] {
-  const chunks: OTPEntry[][] = []
-  let currentChunk: OTPEntry[] = []
-  let currentSize = 0
+  const chunks: OTPEntry[][] = [];
+  let currentChunk: OTPEntry[] = [];
+  let currentSize = 0;
 
   for (const entry of entries) {
-    const entrySize = JSON.stringify(entry).length * 2 // UTF-16 추정
+    const entrySize = JSON.stringify(entry).length * 2; // UTF-16 추정
     if (currentSize + entrySize > CHUNK_MAX_BYTES && currentChunk.length > 0) {
-      chunks.push(currentChunk)
-      currentChunk = []
-      currentSize = 0
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentSize = 0;
     }
-    currentChunk.push(entry)
-    currentSize += entrySize
+    currentChunk.push(entry);
+    currentSize += entrySize;
   }
 
   if (currentChunk.length > 0) {
-    chunks.push(currentChunk)
+    chunks.push(currentChunk);
   }
 
-  return chunks
+  return chunks;
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
@@ -59,15 +59,15 @@ export function splitEntriesIntoChunks(entries: OTPEntry[]): OTPEntry[][] {
  * 설정을 저장한다.
  */
 export async function saveSettings(settings: Settings): Promise<void> {
-  await chrome.storage.sync.set({ [KEYS.SETTINGS]: settings })
+  await chrome.storage.sync.set({ [KEYS.SETTINGS]: settings });
 }
 
 /**
  * 설정을 불러온다.
  */
 export async function loadSettings(): Promise<Settings | null> {
-  const result = await chrome.storage.sync.get(KEYS.SETTINGS)
-  return (result[KEYS.SETTINGS] as Settings) ?? null
+  const result = await chrome.storage.sync.get(KEYS.SETTINGS);
+  return (result[KEYS.SETTINGS] as Settings) ?? null;
 }
 
 // ─── Tags ────────────────────────────────────────────────────────────────────
@@ -76,46 +76,46 @@ export async function loadSettings(): Promise<Settings | null> {
  * 태그 목록을 저장한다.
  */
 export async function saveTags(tags: Tag[]): Promise<void> {
-  await chrome.storage.sync.set({ [KEYS.TAGS]: tags })
+  await chrome.storage.sync.set({ [KEYS.TAGS]: tags });
 }
 
 /**
  * 태그 목록을 불러온다.
  */
 export async function loadTags(): Promise<Tag[]> {
-  const result = await chrome.storage.sync.get(KEYS.TAGS)
-  return (result[KEYS.TAGS] as Tag[]) ?? []
+  const result = await chrome.storage.sync.get(KEYS.TAGS);
+  return (result[KEYS.TAGS] as Tag[]) ?? [];
 }
 
 /**
  * 태그를 추가한다.
  */
 export async function addTag(tag: Tag): Promise<void> {
-  const tags = await loadTags()
-  tags.push(tag)
-  await saveTags(tags)
+  const tags = await loadTags();
+  tags.push(tag);
+  await saveTags(tags);
 }
 
 /**
  * 태그를 삭제한다. 연관된 OTP 항목의 태그 참조도 제거한다.
  */
 export async function deleteTag(tagId: string): Promise<void> {
-  const tags = await loadTags()
-  const filtered = tags.filter((t) => t.id !== tagId)
-  await saveTags(filtered)
+  const tags = await loadTags();
+  const filtered = tags.filter((t) => t.id !== tagId);
+  await saveTags(filtered);
 
   // 연관된 entries에서 태그 제거
-  const entries = await loadEntries()
-  let modified = false
+  const entries = await loadEntries();
+  let modified = false;
   for (const entry of entries) {
-    const idx = entry.tags.indexOf(tagId)
+    const idx = entry.tags.indexOf(tagId);
     if (idx !== -1) {
-      entry.tags.splice(idx, 1)
-      modified = true
+      entry.tags.splice(idx, 1);
+      modified = true;
     }
   }
   if (modified) {
-    await saveEntries(entries)
+    await saveEntries(entries);
   }
 }
 
@@ -125,15 +125,15 @@ export async function deleteTag(tagId: string): Promise<void> {
  * 순서 배열을 저장한다.
  */
 export async function saveOrder(order: string[]): Promise<void> {
-  await chrome.storage.sync.set({ [KEYS.ORDER]: order })
+  await chrome.storage.sync.set({ [KEYS.ORDER]: order });
 }
 
 /**
  * 순서 배열을 불러온다.
  */
 export async function loadOrder(): Promise<string[]> {
-  const result = await chrome.storage.sync.get(KEYS.ORDER)
-  return (result[KEYS.ORDER] as string[]) ?? []
+  const result = await chrome.storage.sync.get(KEYS.ORDER);
+  return (result[KEYS.ORDER] as string[]) ?? [];
 }
 
 // ─── Entries (Chunked) ───────────────────────────────────────────────────────
@@ -142,8 +142,8 @@ export async function loadOrder(): Promise<string[]> {
  * 모든 entries 청크 키를 조회한다.
  */
 async function getEntryChunkKeys(): Promise<string[]> {
-  const all = await chrome.storage.sync.get(null)
-  return Object.keys(all).filter((key) => key.startsWith(KEYS.ENTRIES_PREFIX))
+  const all = await chrome.storage.sync.get(null);
+  return Object.keys(all).filter((key) => key.startsWith(KEYS.ENTRIES_PREFIX));
 }
 
 /**
@@ -151,20 +151,20 @@ async function getEntryChunkKeys(): Promise<string[]> {
  */
 export async function saveEntries(entries: OTPEntry[]): Promise<void> {
   // 기존 청크 삭제
-  const existingKeys = await getEntryChunkKeys()
+  const existingKeys = await getEntryChunkKeys();
   if (existingKeys.length > 0) {
-    await chrome.storage.sync.remove(existingKeys)
+    await chrome.storage.sync.remove(existingKeys);
   }
 
   // 새 청크 저장
-  const chunks = splitEntriesIntoChunks(entries)
-  const storageObj: Record<string, OTPEntry[]> = {}
+  const chunks = splitEntriesIntoChunks(entries);
+  const storageObj: Record<string, OTPEntry[]> = {};
   for (let i = 0; i < chunks.length; i++) {
-    storageObj[`${KEYS.ENTRIES_PREFIX}${i}`] = chunks[i]
+    storageObj[`${KEYS.ENTRIES_PREFIX}${i}`] = chunks[i];
   }
 
   if (Object.keys(storageObj).length > 0) {
-    await chrome.storage.sync.set(storageObj)
+    await chrome.storage.sync.set(storageObj);
   }
 }
 
@@ -172,26 +172,26 @@ export async function saveEntries(entries: OTPEntry[]): Promise<void> {
  * 모든 OTP 항목을 불러온다 (청크 병합).
  */
 export async function loadEntries(): Promise<OTPEntry[]> {
-  const chunkKeys = await getEntryChunkKeys()
-  if (chunkKeys.length === 0) return []
+  const chunkKeys = await getEntryChunkKeys();
+  if (chunkKeys.length === 0) return [];
 
   // 키를 숫자 순으로 정렬
   chunkKeys.sort((a, b) => {
-    const numA = parseInt(a.replace(KEYS.ENTRIES_PREFIX, ''), 10)
-    const numB = parseInt(b.replace(KEYS.ENTRIES_PREFIX, ''), 10)
-    return numA - numB
-  })
+    const numA = parseInt(a.replace(KEYS.ENTRIES_PREFIX, ''), 10);
+    const numB = parseInt(b.replace(KEYS.ENTRIES_PREFIX, ''), 10);
+    return numA - numB;
+  });
 
-  const result = await chrome.storage.sync.get(chunkKeys)
-  const entries: OTPEntry[] = []
+  const result = await chrome.storage.sync.get(chunkKeys);
+  const entries: OTPEntry[] = [];
   for (const key of chunkKeys) {
-    const chunk = result[key] as OTPEntry[] | undefined
+    const chunk = result[key] as OTPEntry[] | undefined;
     if (chunk) {
-      entries.push(...chunk)
+      entries.push(...chunk);
     }
   }
 
-  return entries
+  return entries;
 }
 
 // ─── Entry CRUD ──────────────────────────────────────────────────────────────
@@ -200,13 +200,13 @@ export async function loadEntries(): Promise<OTPEntry[]> {
  * OTP 항목을 추가한다. order 배열 끝에 ID를 추가한다.
  */
 export async function addEntry(entry: OTPEntry): Promise<void> {
-  const entries = await loadEntries()
-  entries.push(entry)
-  await saveEntries(entries)
+  const entries = await loadEntries();
+  entries.push(entry);
+  await saveEntries(entries);
 
-  const order = await loadOrder()
-  order.push(entry.id)
-  await saveOrder(order)
+  const order = await loadOrder();
+  order.push(entry.id);
+  await saveOrder(order);
 }
 
 /**
@@ -214,41 +214,41 @@ export async function addEntry(entry: OTPEntry): Promise<void> {
  */
 export async function updateEntry(
   id: string,
-  updates: Partial<Omit<OTPEntry, 'id'>>
+  updates: Partial<Omit<OTPEntry, 'id'>>,
 ): Promise<void> {
-  const entries = await loadEntries()
-  const index = entries.findIndex((e) => e.id === id)
+  const entries = await loadEntries();
+  const index = entries.findIndex((e) => e.id === id);
   if (index === -1) {
-    throw new Error(`Entry not found: ${id}`)
+    throw new Error(`Entry not found: ${id}`);
   }
 
   entries[index] = {
     ...entries[index],
     ...updates,
     updatedAt: new Date().toISOString(),
-  }
-  await saveEntries(entries)
+  };
+  await saveEntries(entries);
 }
 
 /**
  * OTP 항목을 삭제한다. order 배열에서도 제거한다.
  */
 export async function deleteEntry(id: string): Promise<void> {
-  const entries = await loadEntries()
-  const filtered = entries.filter((e) => e.id !== id)
-  await saveEntries(filtered)
+  const entries = await loadEntries();
+  const filtered = entries.filter((e) => e.id !== id);
+  await saveEntries(filtered);
 
-  const order = await loadOrder()
-  const newOrder = order.filter((oid) => oid !== id)
-  await saveOrder(newOrder)
+  const order = await loadOrder();
+  const newOrder = order.filter((oid) => oid !== id);
+  await saveOrder(newOrder);
 }
 
 /**
  * ID로 단일 OTP 항목을 조회한다.
  */
 export async function getEntry(id: string): Promise<OTPEntry | null> {
-  const entries = await loadEntries()
-  return entries.find((e) => e.id === id) ?? null
+  const entries = await loadEntries();
+  return entries.find((e) => e.id === id) ?? null;
 }
 
 // ─── Order Management ────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export async function getEntry(id: string): Promise<OTPEntry | null> {
  * @param newOrder - 새로운 ID 순서 배열
  */
 export async function reorder(newOrder: string[]): Promise<void> {
-  await saveOrder(newOrder)
+  await saveOrder(newOrder);
 }
 
 // ─── Full Data Load ──────────────────────────────────────────────────────────
@@ -273,19 +273,19 @@ export async function loadAll(): Promise<Partial<StorageSchema>> {
     loadEntries(),
     loadTags(),
     loadOrder(),
-  ])
+  ]);
 
   return {
     settings: settings ?? undefined,
     entries,
     tags,
     order,
-  }
+  };
 }
 
 /**
  * 전체 storage를 초기화한다 (주의: 모든 데이터 삭제).
  */
 export async function clearAll(): Promise<void> {
-  await chrome.storage.sync.clear()
+  await chrome.storage.sync.clear();
 }

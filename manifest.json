@@ -3,11 +3,7 @@
   "name": "GW-OTP",
   "version": "1.0.0",
   "description": "OTP 인증 코드 관리 크롬 확장 프로그램",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "clipboardWrite"
-  ],
+  "permissions": ["storage", "activeTab", "clipboardWrite"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {

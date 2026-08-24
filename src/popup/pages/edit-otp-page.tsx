@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Save } from 'lucide-react'
-import { Button } from '@/popup/components/ui/button'
-import { Input } from '@/popup/components/ui/input'
-import { Label } from '@/popup/components/ui/label'
-import { getEntry, updateEntry } from '@/core/storage'
-import { encrypt, decrypt } from '@/core/crypto'
-import { normalizeSecret } from '@/core/otp'
-import type { Algorithm, Digits } from '@/types'
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Save } from 'lucide-react';
+import { Button } from '@/popup/components/ui/button';
+import { Input } from '@/popup/components/ui/input';
+import { Label } from '@/popup/components/ui/label';
+import { getEntry, updateEntry } from '@/core/storage';
+import { encrypt, decrypt } from '@/core/crypto';
+import { normalizeSecret } from '@/core/otp';
+import type { Algorithm, Digits } from '@/types';
 
 interface EditOTPPageProps {
-  entryId: string
-  sessionKey: CryptoKey
-  onBack: () => void
-  onSaved: () => void
+  entryId: string;
+  sessionKey: CryptoKey;
+  onBack: () => void;
+  onSaved: () => void;
 }
 
 export function EditOTPPage({
@@ -21,63 +21,66 @@ export function EditOTPPage({
   onBack,
   onSaved,
 }: EditOTPPageProps) {
-  const [issuer, setIssuer] = useState('')
-  const [label, setLabel] = useState('')
-  const [secret, setSecret] = useState('')
-  const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1')
-  const [digits, setDigits] = useState<Digits>(6)
-  const [period, setPeriod] = useState(30)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [issuer, setIssuer] = useState('');
+  const [label, setLabel] = useState('');
+  const [secret, setSecret] = useState('');
+  const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1');
+  const [digits, setDigits] = useState<Digits>(6);
+  const [period, setPeriod] = useState(30);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
-      const entry = await getEntry(entryId)
+      const entry = await getEntry(entryId);
       if (!entry) {
-        setError('항목을 찾을 수 없습니다.')
-        setLoading(false)
-        return
+        setError('항목을 찾을 수 없습니다.');
+        setLoading(false);
+        return;
       }
 
-      setIssuer(entry.issuer)
-      setLabel(entry.label)
-      setAlgorithm(entry.algorithm)
-      setDigits(entry.digits)
-      setPeriod(entry.period)
+      setIssuer(entry.issuer);
+      setLabel(entry.label);
+      setAlgorithm(entry.algorithm);
+      setDigits(entry.digits);
+      setPeriod(entry.period);
 
       try {
-        const decrypted = await decrypt(entry.encryptedSecret, sessionKey)
-        setSecret(decrypted)
+        const decrypted = await decrypt(entry.encryptedSecret, sessionKey);
+        setSecret(decrypted);
       } catch {
-        setError('Secret 복호화에 실패했습니다.')
+        setError('Secret 복호화에 실패했습니다.');
       }
 
-      setLoading(false)
+      setLoading(false);
     }
-    load()
-  }, [entryId, sessionKey])
+    load();
+  }, [entryId, sessionKey]);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (!issuer.trim()) {
-      setError('서비스명(Issuer)을 입력하세요.')
-      return
+      setError('서비스명(Issuer)을 입력하세요.');
+      return;
     }
     if (!label.trim()) {
-      setError('계정(Label)을 입력하세요.')
-      return
+      setError('계정(Label)을 입력하세요.');
+      return;
     }
     if (!secret.trim()) {
-      setError('Secret을 입력하세요.')
-      return
+      setError('Secret을 입력하세요.');
+      return;
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
-      const encryptedSecret = await encrypt(normalizeSecret(secret), sessionKey)
+      const encryptedSecret = await encrypt(
+        normalizeSecret(secret),
+        sessionKey,
+      );
       await updateEntry(entryId, {
         issuer: issuer.trim(),
         label: label.trim(),
@@ -85,12 +88,12 @@ export function EditOTPPage({
         algorithm,
         digits,
         period,
-      })
-      onSaved()
+      });
+      onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -99,7 +102,7 @@ export function EditOTPPage({
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
         <p className="text-sm text-muted-foreground">로딩 중...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -198,5 +201,5 @@ export function EditOTPPage({
         </Button>
       </form>
     </div>
-  )
+  );
 }

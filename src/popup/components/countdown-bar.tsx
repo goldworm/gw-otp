@@ -1,46 +1,49 @@
-import { useEffect, useState } from 'react'
-import { cn } from '@/popup/lib/utils'
+import { useEffect, useState } from 'react';
+import { cn } from '@/popup/lib/utils';
 
 interface CountdownBarProps {
-  period: number
-  size?: number
-  className?: string
+  period: number;
+  size?: number;
+  className?: string;
 }
 
 /**
  * 원형 카운트다운 타이머.
  * SVG circle stroke-dashoffset으로 남은 시간을 시각화한다.
  */
-export function CountdownBar({ period, size = 20, className }: CountdownBarProps) {
-  const [remaining, setRemaining] = useState(() => getRemainingSeconds(period))
+export function CountdownBar({
+  period,
+  size = 20,
+  className,
+}: CountdownBarProps) {
+  const [remaining, setRemaining] = useState(() => getRemainingSeconds(period));
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRemaining(getRemainingSeconds(period))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [period])
+      setRemaining(getRemainingSeconds(period));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [period]);
 
-  const ratio = remaining / period
-  const isUrgent = remaining <= 5
+  const ratio = remaining / period;
+  const isUrgent = remaining <= 5;
 
   // SVG circle parameters
-  const strokeWidth = 2.5
-  const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-  const dashOffset = circumference * (1 - ratio)
+  const strokeWidth = 2.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - ratio);
 
   return (
     <div
-      className={cn('relative inline-flex items-center justify-center', className)}
+      className={cn(
+        'relative inline-flex items-center justify-center',
+        className,
+      )}
       style={{ width: size, height: size }}
       aria-label={`${remaining}초 남음`}
     >
-      <svg
-        width={size}
-        height={size}
-        className="-rotate-90"
-      >
+      <svg width={size} height={size} className="-rotate-90">
         {/* Background circle */}
         <circle
           cx={size / 2}
@@ -64,23 +67,23 @@ export function CountdownBar({ period, size = 20, className }: CountdownBarProps
           strokeDashoffset={dashOffset}
           className={cn(
             'transition-all duration-1000 ease-linear',
-            isUrgent ? 'text-destructive' : 'text-primary'
+            isUrgent ? 'text-destructive' : 'text-primary',
           )}
         />
       </svg>
       <span
         className={cn(
           'absolute text-[8px] font-medium',
-          isUrgent ? 'text-destructive' : 'text-muted-foreground'
+          isUrgent ? 'text-destructive' : 'text-muted-foreground',
         )}
       >
         {remaining}
       </span>
     </div>
-  )
+  );
 }
 
 function getRemainingSeconds(period: number): number {
-  const now = Math.floor(Date.now() / 1000)
-  return period - (now % period)
+  const now = Math.floor(Date.now() / 1000);
+  return period - (now % period);
 }

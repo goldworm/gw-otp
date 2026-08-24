@@ -9,8 +9,14 @@
  * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
  */
 
-import { generate, verify, generateSecret, generateURI, createGuardrails } from 'otplib'
-import type { Algorithm, Digits, ParsedOTPAuthURI } from '@/types'
+import {
+  generate,
+  verify,
+  generateSecret,
+  generateURI,
+  createGuardrails,
+} from 'otplib';
+import type { Algorithm, Digits, ParsedOTPAuthURI } from '@/types';
 
 // ─── TOTP Generation ─────────────────────────────────────────────────────────
 
@@ -19,7 +25,7 @@ const ALGORITHM_MAP: Record<Algorithm, 'sha1' | 'sha256' | 'sha512'> = {
   SHA1: 'sha1',
   SHA256: 'sha256',
   SHA512: 'sha512',
-}
+};
 
 /**
  * TOTP 코드를 생성한다.
@@ -34,17 +40,17 @@ export async function generateTOTP(
   secret: string,
   algorithm: Algorithm = 'SHA1',
   digits: Digits = 6,
-  period: number = 30
+  period: number = 30,
 ): Promise<string> {
-  const normalized = normalizeSecret(secret)
+  const normalized = normalizeSecret(secret);
   const token = await generate({
     secret: normalized,
     algorithm: ALGORITHM_MAP[algorithm],
     digits,
     period,
     guardrails: createGuardrails({ MIN_SECRET_BYTES: 10 }),
-  })
-  return token
+  });
+  return token;
 }
 
 /**
@@ -62,17 +68,17 @@ export async function verifyTOTP(
   secret: string,
   algorithm: Algorithm = 'SHA1',
   digits: Digits = 6,
-  period: number = 30
+  period: number = 30,
 ): Promise<boolean> {
-  const normalized = normalizeSecret(secret)
+  const normalized = normalizeSecret(secret);
   const result = await verify({
     token,
     secret: normalized,
     algorithm: ALGORITHM_MAP[algorithm],
     digits,
     period,
-  })
-  return result.valid
+  });
+  return result.valid;
 }
 
 // ─── Time Utilities ──────────────────────────────────────────────────────────
@@ -84,8 +90,8 @@ export async function verifyTOTP(
  * @returns 남은 초 수 (1 ~ period)
  */
 export function getRemainingSeconds(period: number = 30): number {
-  const now = Math.floor(Date.now() / 1000)
-  return period - (now % period)
+  const now = Math.floor(Date.now() / 1000);
+  return period - (now % period);
 }
 
 /**
@@ -96,7 +102,7 @@ export function getRemainingSeconds(period: number = 30): number {
  * @returns 0~1 사이의 비율
  */
 export function getRemainingRatio(period: number = 30): number {
-  return getRemainingSeconds(period) / period
+  return getRemainingSeconds(period) / period;
 }
 
 // ─── URI Parsing ─────────────────────────────────────────────────────────────
@@ -112,54 +118,54 @@ export function getRemainingRatio(period: number = 30): number {
  * @throws URI 형식이 잘못된 경우
  */
 export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
-  const trimmed = uri.trim()
+  const trimmed = uri.trim();
 
   if (!trimmed.startsWith('otpauth://')) {
-    throw new Error('Invalid OTP Auth URI: must start with "otpauth://"')
+    throw new Error('Invalid OTP Auth URI: must start with "otpauth://"');
   }
 
-  const url = new URL(trimmed)
-  const type = url.hostname as 'totp' | 'hotp'
+  const url = new URL(trimmed);
+  const type = url.hostname as 'totp' | 'hotp';
 
   if (type !== 'totp') {
-    throw new Error(`Unsupported OTP type: ${type}. Only "totp" is supported.`)
+    throw new Error(`Unsupported OTP type: ${type}. Only "totp" is supported.`);
   }
 
   // pathname: /Issuer:label 또는 /label
-  const path = decodeURIComponent(url.pathname.slice(1)) // remove leading /
-  let issuer = ''
-  let label = ''
+  const path = decodeURIComponent(url.pathname.slice(1)); // remove leading /
+  let issuer = '';
+  let label = '';
 
   if (path.includes(':')) {
-    const colonIndex = path.indexOf(':')
-    issuer = path.slice(0, colonIndex).trim()
-    label = path.slice(colonIndex + 1).trim()
+    const colonIndex = path.indexOf(':');
+    issuer = path.slice(0, colonIndex).trim();
+    label = path.slice(colonIndex + 1).trim();
   } else {
-    label = path.trim()
+    label = path.trim();
   }
 
   // Query parameters
-  const params = url.searchParams
-  const secret = params.get('secret')
+  const params = url.searchParams;
+  const secret = params.get('secret');
   if (!secret) {
-    throw new Error('Invalid OTP Auth URI: missing "secret" parameter')
+    throw new Error('Invalid OTP Auth URI: missing "secret" parameter');
   }
 
   // issuer 파라미터가 있으면 path의 issuer보다 우선
-  const issuerParam = params.get('issuer')
+  const issuerParam = params.get('issuer');
   if (issuerParam) {
-    issuer = issuerParam
+    issuer = issuerParam;
   }
 
-  const algorithmParam = (params.get('algorithm') ?? 'SHA1').toUpperCase()
-  const algorithm = validateAlgorithm(algorithmParam)
+  const algorithmParam = (params.get('algorithm') ?? 'SHA1').toUpperCase();
+  const algorithm = validateAlgorithm(algorithmParam);
 
-  const digitsParam = parseInt(params.get('digits') ?? '6', 10)
-  const digits = validateDigits(digitsParam)
+  const digitsParam = parseInt(params.get('digits') ?? '6', 10);
+  const digits = validateDigits(digitsParam);
 
-  const period = parseInt(params.get('period') ?? '30', 10)
+  const period = parseInt(params.get('period') ?? '30', 10);
   if (isNaN(period) || period <= 0) {
-    throw new Error(`Invalid period: ${params.get('period')}`)
+    throw new Error(`Invalid period: ${params.get('period')}`);
   }
 
   return {
@@ -170,21 +176,21 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
     algorithm,
     digits,
     period,
-  }
+  };
 }
 
 function validateAlgorithm(value: string): Algorithm {
   if (value === 'SHA1' || value === 'SHA256' || value === 'SHA512') {
-    return value
+    return value;
   }
-  throw new Error(`Unsupported algorithm: ${value}`)
+  throw new Error(`Unsupported algorithm: ${value}`);
 }
 
 function validateDigits(value: number): Digits {
   if (value === 6 || value === 8) {
-    return value
+    return value;
   }
-  throw new Error(`Unsupported digits: ${value}. Must be 6 or 8.`)
+  throw new Error(`Unsupported digits: ${value}. Must be 6 or 8.`);
 }
 
 // ─── URI Generation ──────────────────────────────────────────────────────────
@@ -196,12 +202,12 @@ function validateDigits(value: number): Digits {
  * @returns otpauth:// URI 문자열
  */
 export function buildOTPAuthURI(options: {
-  issuer: string
-  label: string
-  secret: string
-  algorithm?: Algorithm
-  digits?: Digits
-  period?: number
+  issuer: string;
+  label: string;
+  secret: string;
+  algorithm?: Algorithm;
+  digits?: Digits;
+  period?: number;
 }): string {
   return generateURI({
     strategy: 'totp',
@@ -211,7 +217,7 @@ export function buildOTPAuthURI(options: {
     algorithm: ALGORITHM_MAP[options.algorithm ?? 'SHA1'],
     digits: options.digits ?? 6,
     period: options.period ?? 30,
-  })
+  });
 }
 
 // ─── Secret Normalization ─────────────────────────────────────────────────────
@@ -224,7 +230,7 @@ export function buildOTPAuthURI(options: {
  * @returns 정규화된 Base32 secret (대문자, 구분자 제거)
  */
 export function normalizeSecret(secret: string): string {
-  return secret.replace(/[\s\-_.]+/g, '').toUpperCase()
+  return secret.replace(/[\s\-_.]+/g, '').toUpperCase();
 }
 
 // ─── Secret Generation ───────────────────────────────────────────────────────
@@ -236,5 +242,5 @@ export function normalizeSecret(secret: string): string {
  * @returns Base32 인코딩된 secret
  */
 export function createSecret(length: number = 20): string {
-  return generateSecret({ length })
+  return generateSecret({ length });
 }

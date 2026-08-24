@@ -6,34 +6,34 @@ GW-OTP는 TOTP(Time-based One-Time Password) 코드를 관리하는 크롬 확�
 
 ## 2. 요구사항 요약
 
-| # | 요구사항 | 설명 |
-|---|---------|------|
-| 1 | OTP 등록 | 수동 입력, QR 이미지 업로드, 화면 캡처, `otpauth://` URI 붙여넣기 |
-| 2 | OTP 관리 | 항목 수정 (issuer, label, secret, tags 등), 항목 삭제 (확인 후) |
-| 3 | OTP 표시 | 리스트형 + 검색/필터 + 태그 기반 그룹핑 |
-| 4 | OTP 카드 | issuer와 label(id) 표시, 드래그앤드롭 순서 조정 |
-| 5 | 보안 | 마스터 비밀번호 암호화, 세션 기반 잠금 + 수동 잠금 |
-| 6 | 편의 기능 | 클립보드 복사, 카운트다운 표시, 내보내기/가져오기 |
-| 7 | 프라이버시 | 마우스 hover 시에만 OTP 코드 표시 (설정 토글) |
-| 8 | 테마 | 라이트/다크/시스템 테마 전환 지원 |
-| 9 | 코드 컨벤션 | 모든 파일명 kebab-case |
-| 10 | 테스트 | Vitest 사용 |
+| #   | 요구사항    | 설명                                                              |
+| --- | ----------- | ----------------------------------------------------------------- |
+| 1   | OTP 등록    | 수동 입력, QR 이미지 업로드, 화면 캡처, `otpauth://` URI 붙여넣기 |
+| 2   | OTP 관리    | 항목 수정 (issuer, label, secret, tags 등), 항목 삭제 (확인 후)   |
+| 3   | OTP 표시    | 리스트형 + 검색/필터 + 태그 기반 그룹핑                           |
+| 4   | OTP 카드    | issuer와 label(id) 표시, 드래그앤드롭 순서 조정                   |
+| 5   | 보안        | 마스터 비밀번호 암호화, 세션 기반 잠금 + 수동 잠금                |
+| 6   | 편의 기능   | 클립보드 복사, 카운트다운 표시, 내보내기/가져오기                 |
+| 7   | 프라이버시  | 마우스 hover 시에만 OTP 코드 표시 (설정 토글)                     |
+| 8   | 테마        | 라이트/다크/시스템 테마 전환 지원                                 |
+| 9   | 코드 컨벤션 | 모든 파일명 kebab-case                                            |
+| 10  | 테스트      | Vitest 사용                                                       |
 
 ## 3. 기술 스택
 
-| 영역 | 기술 |
-|------|------|
-| UI 프레임워크 | React 19, TypeScript |
-| 스타일링 | Tailwind CSS |
-| UI 컴포넌트 | shadcn/ui (Radix UI 기반) |
-| 빌드 도구 | Vite |
-| Chrome Extension 빌드 | @crxjs/vite-plugin |
-| OTP 생성 | otplib |
-| QR 디코딩 | jsQR |
-| 드래그앤드롭 | @dnd-kit/core, @dnd-kit/sortable |
-| 암호화 | Web Crypto API (AES-GCM, PBKDF2) |
-| 테스트 | Vitest |
-| Manifest 버전 | Chrome Extension Manifest V3 |
+| 영역                  | 기술                             |
+| --------------------- | -------------------------------- |
+| UI 프레임워크         | React 19, TypeScript             |
+| 스타일링              | Tailwind CSS                     |
+| UI 컴포넌트           | shadcn/ui (Radix UI 기반)        |
+| 빌드 도구             | Vite                             |
+| Chrome Extension 빌드 | @crxjs/vite-plugin               |
+| OTP 생성              | otplib                           |
+| QR 디코딩             | jsQR                             |
+| 드래그앤드롭          | @dnd-kit/core, @dnd-kit/sortable |
+| 암호화                | Web Crypto API (AES-GCM, PBKDF2) |
+| 테스트                | Vitest                           |
+| Manifest 버전         | Chrome Extension Manifest V3     |
 
 ## 4. 아키텍처
 
@@ -59,12 +59,14 @@ Core 레이어와 UI 레이어를 엄격히 격리한다. 이를 통해 UI 프�
 ```
 
 **규칙:**
+
 - `src/core/` 내 파일은 `react`, `react-dom`, CSS, Tailwind, shadcn/ui를 import하지 않는다.
 - `src/core/` 는 순수 TypeScript 함수/클래스만 포함하며, 모든 외부 의존은 인자로 주입받는다 (예: `chrome.storage`는 인터페이스로 추상화 가능).
 - UI 레이어(`src/popup/`)는 Core의 함수를 호출하여 데이터를 가공하고, 결과를 렌더링하는 역할만 담당한다.
 - Background 레이어(`src/background/`)는 Core를 직접 사용하며, Popup과는 메시지로만 통신한다.
 
 **의존 방향:**
+
 ```
 UI (popup) ──► Core ◄── Background
      │                       │
@@ -309,12 +311,12 @@ type MessageResponse =
 
 ### 메시지 흐름
 
-| 메시지 | 설명 | 요청 | 응답 |
-|--------|------|------|------|
-| `unlock` | 마스터 비밀번호로 잠금 해제 | `{ type: 'unlock', password }` | `{ success, error? }` |
-| `lock` | 수동 잠금 | `{ type: 'lock' }` | `{ success }` |
-| `getStatus` | 현재 잠금 상태 확인 | `{ type: 'getStatus' }` | `{ isUnlocked, isInitialized }` |
-| `getKey` | 복호화 키 요청 | `{ type: 'getKey' }` | `{ key }` |
+| 메시지      | 설명                        | 요청                           | 응답                            |
+| ----------- | --------------------------- | ------------------------------ | ------------------------------- |
+| `unlock`    | 마스터 비밀번호로 잠금 해제 | `{ type: 'unlock', password }` | `{ success, error? }`           |
+| `lock`      | 수동 잠금                   | `{ type: 'lock' }`             | `{ success }`                   |
+| `getStatus` | 현재 잠금 상태 확인         | `{ type: 'getStatus' }`        | `{ isUnlocked, isInitialized }` |
+| `getKey`    | 복호화 키 요청              | `{ type: 'getKey' }`           | `{ key }`                       |
 
 ### 상태 전이
 
@@ -366,12 +368,14 @@ Base64 encoded data → IV(12) | ciphertext | authTag(16)
 ### 9.4 비밀번호 검증
 
 최초 비밀번호 설정 시:
+
 1. random salt 생성 (16 bytes)
 2. PBKDF2로 키 유도
 3. 고정 검증 문자열("gw-otp-verify")을 암호화하여 `passwordHash`로 저장
 4. salt를 Settings에 저장
 
 잠금 해제 시:
+
 1. 입력된 비밀번호 + 저장된 salt로 키 유도
 2. `passwordHash`를 복호화 시도
 3. 결과가 "gw-otp-verify"이면 비밀번호 정확 → 키를 Background 메모리에 보관
@@ -437,11 +441,11 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 
 ### 11.1 세션 생명주기
 
-| 상태 | 조건 | 키 위치 |
-|------|------|---------|
-| 초기화 안됨 | 최초 실행, 비밀번호 미설정 | 없음 |
-| 잠금 | 비밀번호 설정됨, 미인증 | 없음 |
-| 해제 | 비밀번호 검증 완료 | Background SW 메모리 |
+| 상태        | 조건                       | 키 위치              |
+| ----------- | -------------------------- | -------------------- |
+| 초기화 안됨 | 최초 실행, 비밀번호 미설정 | 없음                 |
+| 잠금        | 비밀번호 설정됨, 미인증    | 없음                 |
+| 해제        | 비밀번호 검증 완료         | Background SW 메모리 |
 
 ### 11.2 자동 잠금
 
@@ -482,13 +486,13 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 
 ### 인터랙션
 
-| 액션 | 동작 |
-|------|------|
-| OTP 코드 클릭 | 클립보드 복사 + 토스트 "복사됨" |
-| 드래그 핸들 잡고 드래그 | 순서 변경 |
-| 편집 아이콘 (✏️) 클릭 | EditOTPPage로 이동 |
-| 삭제 아이콘 (🗑️) 클릭 | 확인 다이얼로그 → 삭제 |
-| 마우스 hover (프라이버시 ON) | `••••••` → 실제 코드 표시 |
+| 액션                         | 동작                            |
+| ---------------------------- | ------------------------------- |
+| OTP 코드 클릭                | 클립보드 복사 + 토스트 "복사됨" |
+| 드래그 핸들 잡고 드래그      | 순서 변경                       |
+| 편집 아이콘 (✏️) 클릭        | EditOTPPage로 이동              |
+| 삭제 아이콘 (🗑️) 클릭        | 확인 다이얼로그 → 삭제          |
+| 마우스 hover (프라이버시 ON) | `••••••` → 실제 코드 표시       |
 
 ### OTP 코드 갱신
 
@@ -500,10 +504,10 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 
 ### 테마 옵션
 
-| 옵션 | 동작 |
-|------|------|
-| `light` | 항상 라이트 모드 |
-| `dark` | 항상 다크 모드 |
+| 옵션     | 동작                                              |
+| -------- | ------------------------------------------------- |
+| `light`  | 항상 라이트 모드                                  |
+| `dark`   | 항상 다크 모드                                    |
 | `system` | OS 설정에 따라 자동 전환 (`prefers-color-scheme`) |
 
 ### 구현 방식
@@ -546,6 +550,7 @@ shadcn/ui는 CSS 변수 기반 테마를 사용한다. `globals.css`에 라이�
 ### Settings 페이지 UI
 
 라디오 버튼 또는 세그먼트 컨트롤로 3가지 옵션 선택:
+
 - ☀️ 라이트
 - 🌙 다크
 - 💻 시스템
@@ -659,14 +664,14 @@ interface BackupFile {
 
 ### 테스트 범위
 
-| 모듈 | 테스트 파일 | 주요 테스트 케이스 |
-|------|------------|-------------------|
-| crypto | `tests/core/crypto.test.ts` | encrypt/decrypt 왕복, 잘못된 비밀번호 실패, salt 고유성 |
-| storage | `tests/core/storage.test.ts` | CRUD 동작, 순서 관리, 청크 분할, 삭제 정합성 |
-| otp | `tests/core/otp.test.ts` | TOTP 생성 검증, URI 파싱, 남은 시간 계산 |
-| qr | `tests/core/qr.test.ts` | QR 이미지 데이터 디코딩 |
-| backup | `tests/core/backup.test.ts` | 내보내기→가져오기 왕복, 버전 검증 |
-| session | `tests/background/session.test.ts` | 잠금/해제 상태 전환, 키 보관/삭제 |
+| 모듈    | 테스트 파일                        | 주요 테스트 케이스                                      |
+| ------- | ---------------------------------- | ------------------------------------------------------- |
+| crypto  | `tests/core/crypto.test.ts`        | encrypt/decrypt 왕복, 잘못된 비밀번호 실패, salt 고유성 |
+| storage | `tests/core/storage.test.ts`       | CRUD 동작, 순서 관리, 청크 분할, 삭제 정합성            |
+| otp     | `tests/core/otp.test.ts`           | TOTP 생성 검증, URI 파싱, 남은 시간 계산                |
+| qr      | `tests/core/qr.test.ts`            | QR 이미지 데이터 디코딩                                 |
+| backup  | `tests/core/backup.test.ts`        | 내보내기→가져오기 왕복, 버전 검증                       |
+| session | `tests/background/session.test.ts` | 잠금/해제 상태 전환, 키 보관/삭제                       |
 
 ### Mock 전략
 
@@ -695,11 +700,7 @@ pnpm test --watch
   "name": "GW-OTP",
   "version": "1.0.0",
   "description": "OTP 인증 코드 관리 크롬 확장 프로그램",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "clipboardWrite"
-  ],
+  "permissions": ["storage", "activeTab", "clipboardWrite"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {

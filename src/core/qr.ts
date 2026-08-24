@@ -8,7 +8,7 @@
  * (Canvas API는 브라우저 표준이므로 허용)
  */
 
-import jsQR from 'jsqr'
+import jsQR from 'jsqr';
 
 /**
  * 이미지 파일(File 객체)에서 QR 코드를 디코딩한다.
@@ -18,8 +18,8 @@ import jsQR from 'jsqr'
  * @throws QR 코드를 찾을 수 없는 경우
  */
 export async function decodeQRFromFile(file: File): Promise<string> {
-  const dataUrl = await fileToDataURL(file)
-  return decodeQRFromDataURL(dataUrl)
+  const dataUrl = await fileToDataURL(file);
+  return decodeQRFromDataURL(dataUrl);
 }
 
 /**
@@ -30,14 +30,14 @@ export async function decodeQRFromFile(file: File): Promise<string> {
  * @throws QR 코드를 찾을 수 없는 경우
  */
 export async function decodeQRFromDataURL(dataUrl: string): Promise<string> {
-  const imageData = await dataURLToImageData(dataUrl)
-  const result = jsQR(imageData.data, imageData.width, imageData.height)
+  const imageData = await dataURLToImageData(dataUrl);
+  const result = jsQR(imageData.data, imageData.width, imageData.height);
 
   if (!result) {
-    throw new Error('QR 코드를 찾을 수 없습니다.')
+    throw new Error('QR 코드를 찾을 수 없습니다.');
   }
 
-  return result.data
+  return result.data;
 }
 
 /**
@@ -45,11 +45,11 @@ export async function decodeQRFromDataURL(dataUrl: string): Promise<string> {
  */
 function fileToDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'))
-    reader.readAsDataURL(file)
-  })
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
@@ -57,23 +57,23 @@ function fileToDataURL(file: File): Promise<string> {
  */
 function dataURLToImageData(dataUrl: string): Promise<ImageData> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
+    const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
 
-      const ctx = canvas.getContext('2d')
+      const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error('Canvas 2D context를 생성할 수 없습니다.'))
-        return
+        reject(new Error('Canvas 2D context를 생성할 수 없습니다.'));
+        return;
       }
 
-      ctx.drawImage(img, 0, 0)
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      resolve(imageData)
-    }
-    img.onerror = () => reject(new Error('이미지를 로드할 수 없습니다.'))
-    img.src = dataUrl
-  })
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      resolve(imageData);
+    };
+    img.onerror = () => reject(new Error('이미지를 로드할 수 없습니다.'));
+    img.src = dataUrl;
+  });
 }

@@ -1,11 +1,11 @@
-import { cn } from '@/popup/lib/utils'
-import type { Tag } from '@/types'
+import { cn } from '@/popup/lib/utils';
+import type { Tag } from '@/types';
 
 interface TagFilterProps {
-  tags: Tag[]
-  selectedTagId: string | null
-  onSelect: (tagId: string | null) => void
-  className?: string
+  tags: Tag[];
+  selectedTagId: string | null;
+  onSelect: (tagId: string | null) => void;
+  className?: string;
 }
 
 export function TagFilter({
@@ -14,7 +14,7 @@ export function TagFilter({
   onSelect,
   className,
 }: TagFilterProps) {
-  if (tags.length === 0) return null
+  if (tags.length === 0) return null;
 
   return (
     <div className={cn('flex items-center gap-1.5 overflow-x-auto', className)}>
@@ -26,7 +26,7 @@ export function TagFilter({
           'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
           selectedTagId === null
             ? 'bg-primary text-primary-foreground'
-            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         )}
       >
         전체
@@ -42,7 +42,7 @@ export function TagFilter({
             'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
             selectedTagId === tag.id
               ? 'text-white'
-              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
           )}
           style={
             selectedTagId === tag.id
@@ -58,5 +58,5 @@ export function TagFilter({
         </button>
       ))}
     </div>
-  )
+  );
 }

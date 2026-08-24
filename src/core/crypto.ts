@@ -9,16 +9,16 @@
  */
 
 /** PBKDF2 반복 횟수 (brute-force 방어) */
-const PBKDF2_ITERATIONS = 600_000
+const PBKDF2_ITERATIONS = 600_000;
 
 /** salt 길이 (bytes) */
-const SALT_LENGTH = 16
+const SALT_LENGTH = 16;
 
 /** AES-GCM IV 길이 (bytes) */
-const IV_LENGTH = 12
+const IV_LENGTH = 12;
 
 /** 비밀번호 검증용 고정 문자열 */
-const VERIFY_PLAINTEXT = 'gw-otp-verify'
+const VERIFY_PLAINTEXT = 'gw-otp-verify';
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
@@ -26,23 +26,23 @@ const VERIFY_PLAINTEXT = 'gw-otp-verify'
  * Uint8Array를 Base64 문자열로 변환
  */
 export function bufferToBase64(buffer: Uint8Array): string {
-  let binary = ''
+  let binary = '';
   for (let i = 0; i < buffer.byteLength; i++) {
-    binary += String.fromCharCode(buffer[i])
+    binary += String.fromCharCode(buffer[i]);
   }
-  return btoa(binary)
+  return btoa(binary);
 }
 
 /**
  * Base64 문자열을 Uint8Array로 변환
  */
 export function base64ToBuffer(base64: string): Uint8Array {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+    bytes[i] = binary.charCodeAt(i);
   }
-  return bytes
+  return bytes;
 }
 
 // ─── Key Derivation ──────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ export function base64ToBuffer(base64: string): Uint8Array {
  * 랜덤 salt 생성
  */
 export function generateSalt(): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
+  return crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
 }
 
 /**
@@ -63,16 +63,16 @@ export function generateSalt(): Uint8Array {
  */
 export async function deriveKey(
   password: string,
-  salt: Uint8Array
+  salt: Uint8Array,
 ): Promise<CryptoKey> {
-  const encoder = new TextEncoder()
+  const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     encoder.encode(password),
     'PBKDF2',
     false,
-    ['deriveKey']
-  )
+    ['deriveKey'],
+  );
 
   return crypto.subtle.deriveKey(
     {
@@ -84,8 +84,8 @@ export async function deriveKey(
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
-  )
+    ['encrypt', 'decrypt'],
+  );
 }
 
 // ─── Encrypt / Decrypt ───────────────────────────────────────────────────────
@@ -101,24 +101,24 @@ export async function deriveKey(
  */
 export async function encrypt(
   plaintext: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<string> {
-  const encoder = new TextEncoder()
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-  const data = encoder.encode(plaintext)
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const data = encoder.encode(plaintext);
 
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    data
-  )
+    data,
+  );
 
   // IV + ciphertext (authTag 포함)를 결합
-  const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength)
-  combined.set(iv, 0)
-  combined.set(new Uint8Array(ciphertext), iv.byteLength)
+  const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.byteLength);
 
-  return bufferToBase64(combined)
+  return bufferToBase64(combined);
 }
 
 /**
@@ -131,20 +131,20 @@ export async function encrypt(
  */
 export async function decrypt(
   encryptedBase64: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<string> {
-  const combined = base64ToBuffer(encryptedBase64)
-  const iv = combined.slice(0, IV_LENGTH)
-  const ciphertext = combined.slice(IV_LENGTH)
+  const combined = base64ToBuffer(encryptedBase64);
+  const iv = combined.slice(0, IV_LENGTH);
+  const ciphertext = combined.slice(IV_LENGTH);
 
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
     key,
-    ciphertext
-  )
+    ciphertext,
+  );
 
-  const decoder = new TextDecoder()
-  return decoder.decode(decrypted)
+  const decoder = new TextDecoder();
+  return decoder.decode(decrypted);
 }
 
 // ─── Password Verification ───────────────────────────────────────────────────
@@ -158,7 +158,7 @@ export async function decrypt(
  * @returns Base64 인코딩된 검증 암호문
  */
 export async function createPasswordHash(key: CryptoKey): Promise<string> {
-  return encrypt(VERIFY_PLAINTEXT, key)
+  return encrypt(VERIFY_PLAINTEXT, key);
 }
 
 /**
@@ -170,14 +170,14 @@ export async function createPasswordHash(key: CryptoKey): Promise<string> {
  */
 export async function verifyPassword(
   passwordHash: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<boolean> {
   try {
-    const decrypted = await decrypt(passwordHash, key)
-    return decrypted === VERIFY_PLAINTEXT
+    const decrypted = await decrypt(passwordHash, key);
+    return decrypted === VERIFY_PLAINTEXT;
   } catch {
     // 복호화 실패 = 비밀번호 불일치
-    return false
+    return false;
   }
 }
 
@@ -191,19 +191,19 @@ export async function verifyPassword(
  * @returns { salt, passwordHash, key } - storage에 저장할 값들과 세션 키
  */
 export async function initializePassword(password: string): Promise<{
-  salt: string
-  passwordHash: string
-  key: CryptoKey
+  salt: string;
+  passwordHash: string;
+  key: CryptoKey;
 }> {
-  const saltBytes = generateSalt()
-  const key = await deriveKey(password, saltBytes)
-  const passwordHash = await createPasswordHash(key)
+  const saltBytes = generateSalt();
+  const key = await deriveKey(password, saltBytes);
+  const passwordHash = await createPasswordHash(key);
 
   return {
     salt: bufferToBase64(saltBytes),
     passwordHash,
     key,
-  }
+  };
 }
 
 /**
@@ -219,10 +219,10 @@ export async function initializePassword(password: string): Promise<{
 export async function unlockWithPassword(
   password: string,
   saltBase64: string,
-  passwordHash: string
+  passwordHash: string,
 ): Promise<CryptoKey | null> {
-  const salt = base64ToBuffer(saltBase64)
-  const key = await deriveKey(password, salt)
-  const isValid = await verifyPassword(passwordHash, key)
-  return isValid ? key : null
+  const salt = base64ToBuffer(saltBase64);
+  const key = await deriveKey(password, salt);
+  const isValid = await verifyPassword(passwordHash, key);
+  return isValid ? key : null;
 }

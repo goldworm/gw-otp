@@ -1,47 +1,47 @@
-import { useState } from 'react'
-import { Button } from '@/popup/components/ui/button'
-import { Input } from '@/popup/components/ui/input'
-import { Label } from '@/popup/components/ui/label'
-import { Lock, Eye, EyeOff } from 'lucide-react'
+import { useState } from 'react';
+import { Button } from '@/popup/components/ui/button';
+import { Input } from '@/popup/components/ui/input';
+import { Label } from '@/popup/components/ui/label';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 
 interface UnlockPageProps {
-  isInitialized: boolean
-  onUnlock: (password: string) => Promise<{ success: boolean; error?: string }>
+  isInitialized: boolean;
+  onUnlock: (password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const isSetup = !isInitialized
+  const isSetup = !isInitialized;
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (isSetup && password !== confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.')
-      return
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
     }
 
     if (password.length < 4) {
-      setError('비밀번호는 최소 4자 이상이어야 합니다.')
-      return
+      setError('비밀번호는 최소 4자 이상이어야 합니다.');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await onUnlock(password)
+      const result = await onUnlock(password);
       if (!result.success) {
-        setError(result.error ?? '잠금 해제에 실패했습니다.')
+        setError(result.error ?? '잠금 해제에 실패했습니다.');
       }
     } catch {
-      setError('오류가 발생했습니다.')
+      setError('오류가 발생했습니다.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -53,9 +53,7 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
         </div>
         <h1 className="text-xl font-semibold text-foreground">GW-OTP</h1>
         <p className="text-sm text-muted-foreground">
-          {isSetup
-            ? '마스터 비밀번호를 설정하세요'
-            : '비밀번호를 입력하세요'}
+          {isSetup ? '마스터 비밀번호를 설정하세요' : '비밀번호를 입력하세요'}
         </p>
       </div>
 
@@ -111,20 +109,16 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading
-            ? '처리 중...'
-            : isSetup
-              ? '비밀번호 설정'
-              : '잠금 해제'}
+          {loading ? '처리 중...' : isSetup ? '비밀번호 설정' : '잠금 해제'}
         </Button>
       </form>
 
       {isSetup && (
         <p className="mt-4 max-w-[280px] text-center text-xs text-muted-foreground">
-          이 비밀번호는 OTP 데이터를 암호화하는 데 사용됩니다.
-          분실 시 복구할 수 없으니 안전하게 보관하세요.
+          이 비밀번호는 OTP 데이터를 암호화하는 데 사용됩니다. 분실 시 복구할 수
+          없으니 안전하게 보관하세요.
         </p>
       )}
     </div>
-  )
+  );
 }

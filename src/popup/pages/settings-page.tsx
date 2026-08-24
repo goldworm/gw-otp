@@ -1,142 +1,161 @@
-import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Sun, Moon, Monitor, Download, Upload, Plus, X } from 'lucide-react'
-import { Button } from '@/popup/components/ui/button'
-import { Input } from '@/popup/components/ui/input'
-import { Label } from '@/popup/components/ui/label'
-import { loadSettings, saveSettings, loadTags, addTag, deleteTag } from '@/core/storage'
+import { useState, useEffect, useRef } from 'react';
+import {
+  ArrowLeft,
+  Sun,
+  Moon,
+  Monitor,
+  Download,
+  Upload,
+  Plus,
+  X,
+} from 'lucide-react';
+import { Button } from '@/popup/components/ui/button';
+import { Input } from '@/popup/components/ui/input';
+import { Label } from '@/popup/components/ui/label';
+import {
+  loadSettings,
+  saveSettings,
+  loadTags,
+  addTag,
+  deleteTag,
+} from '@/core/storage';
 import {
   createBackup,
   createDownloadURL,
   parseBackupFile,
   decryptBackup,
   importBackup,
-} from '@/core/backup'
-import type { Settings, Tag, Theme } from '@/types'
+} from '@/core/backup';
+import type { Settings, Tag, Theme } from '@/types';
 
 interface SettingsPageProps {
-  sessionKey: CryptoKey
-  onBack: () => void
-  onThemeChange: (theme: Theme) => void
+  sessionKey: CryptoKey;
+  onBack: () => void;
+  onThemeChange: (theme: Theme) => void;
 }
 
-export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPageProps) {
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [exportPassword, setExportPassword] = useState('')
-  const [importPassword, setImportPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [exporting, setExporting] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [tags, setTags] = useState<Tag[]>([])
-  const [newTagName, setNewTagName] = useState('')
-  const [newTagColor, setNewTagColor] = useState('#3b82f6')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+export function SettingsPage({
+  sessionKey,
+  onBack,
+  onThemeChange,
+}: SettingsPageProps) {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [exportPassword, setExportPassword] = useState('');
+  const [importPassword, setImportPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#3b82f6');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([loadSettings(), loadTags()]).then(([s, t]) => {
-      setSettings(s)
-      setTags(t)
-      setLoading(false)
-    })
-  }, [])
+      setSettings(s);
+      setTags(t);
+      setLoading(false);
+    });
+  }, []);
 
   async function updateSetting<K extends keyof Settings>(
     key: K,
-    value: Settings[K]
+    value: Settings[K],
   ) {
-    if (!settings) return
-    const updated = { ...settings, [key]: value }
-    setSettings(updated)
-    await saveSettings(updated)
+    if (!settings) return;
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    await saveSettings(updated);
 
     if (key === 'theme') {
-      onThemeChange(value as Theme)
+      onThemeChange(value as Theme);
     }
   }
 
   // 태그 추가
   async function handleAddTag() {
-    if (!newTagName.trim()) return
+    if (!newTagName.trim()) return;
     const tag: Tag = {
       id: crypto.randomUUID(),
       name: newTagName.trim(),
       color: newTagColor,
-    }
-    await addTag(tag)
-    setTags((prev) => [...prev, tag])
-    setNewTagName('')
+    };
+    await addTag(tag);
+    setTags((prev) => [...prev, tag]);
+    setNewTagName('');
   }
 
   // 태그 삭제
   async function handleDeleteTag(tagId: string) {
-    await deleteTag(tagId)
-    setTags((prev) => prev.filter((t) => t.id !== tagId))
+    await deleteTag(tagId);
+    setTags((prev) => prev.filter((t) => t.id !== tagId));
   }
 
   // 내보내기
   async function handleExport() {
-    setError('')
-    setMessage('')
+    setError('');
+    setMessage('');
     if (!exportPassword.trim()) {
-      setError('내보내기 비밀번호를 입력하세요.')
-      return
+      setError('내보내기 비밀번호를 입력하세요.');
+      return;
     }
 
-    setExporting(true)
+    setExporting(true);
     try {
-      const backup = await createBackup(exportPassword, sessionKey)
-      const { url, filename } = createDownloadURL(backup)
+      const backup = await createBackup(exportPassword, sessionKey);
+      const { url, filename } = createDownloadURL(backup);
 
       // 다운로드 트리거
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-      setMessage('백업 파일이 다운로드되었습니다.')
-      setExportPassword('')
+      setMessage('백업 파일이 다운로드되었습니다.');
+      setExportPassword('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '내보내기에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '내보내기에 실패했습니다.');
     } finally {
-      setExporting(false)
+      setExporting(false);
     }
   }
 
   // 가져오기
   async function handleImport() {
-    setError('')
-    setMessage('')
+    setError('');
+    setMessage('');
     if (!importFile) {
-      setError('백업 파일을 선택하세요.')
-      return
+      setError('백업 파일을 선택하세요.');
+      return;
     }
     if (!importPassword.trim()) {
-      setError('내보내기 시 사용한 비밀번호를 입력하세요.')
-      return
+      setError('내보내기 시 사용한 비밀번호를 입력하세요.');
+      return;
     }
 
-    setImporting(true)
+    setImporting(true);
     try {
-      const content = await importFile.text()
-      const backup = parseBackupFile(content)
-      const data = await decryptBackup(backup, importPassword)
-      const result = await importBackup(data, sessionKey, 'merge')
+      const content = await importFile.text();
+      const backup = parseBackupFile(content);
+      const data = await decryptBackup(backup, importPassword);
+      const result = await importBackup(data, sessionKey, 'merge');
 
       setMessage(
-        `가져오기 완료: ${result.imported}개 추가, ${result.skipped}개 중복 건너뜀`
-      )
-      setImportPassword('')
-      setImportFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+        `가져오기 완료: ${result.imported}개 추가, ${result.skipped}개 중복 건너뜀`,
+      );
+      setImportPassword('');
+      setImportFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.');
     } finally {
-      setImporting(false)
+      setImporting(false);
     }
   }
 
@@ -145,7 +164,7 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
         <p className="text-sm text-muted-foreground">로딩 중...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -201,7 +220,7 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
               onClick={() =>
                 updateSetting(
                   'hideCodesUntilHover',
-                  !settings.hideCodesUntilHover
+                  !settings.hideCodesUntilHover,
                 )
               }
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
@@ -246,7 +265,9 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
               </div>
             )}
             {tags.length === 0 && (
-              <p className="text-xs text-muted-foreground">등록된 태그가 없습니다.</p>
+              <p className="text-xs text-muted-foreground">
+                등록된 태그가 없습니다.
+              </p>
             )}
 
             {/* 새 태그 추가 */}
@@ -263,7 +284,12 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
                 onChange={(e) => setNewTagName(e.target.value)}
                 placeholder="새 태그 이름"
                 className="h-7 flex-1 text-xs"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag() } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
               />
               <Button
                 type="button"
@@ -340,7 +366,9 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
 
         {/* 메시지 */}
         {message && (
-          <p className="text-sm text-green-600 dark:text-green-400">{message}</p>
+          <p className="text-sm text-green-600 dark:text-green-400">
+            {message}
+          </p>
         )}
         {error && (
           <p className="text-sm text-destructive" role="alert">
@@ -349,7 +377,7 @@ export function SettingsPage({ sessionKey, onBack, onThemeChange }: SettingsPage
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function ThemeButton({
@@ -358,10 +386,10 @@ function ThemeButton({
   active,
   onClick,
 }: {
-  icon: React.ReactNode
-  label: string
-  active: boolean
-  onClick: () => void
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
@@ -376,5 +404,5 @@ function ThemeButton({
       {icon}
       <span className="text-xs font-medium">{label}</span>
     </button>
-  )
+  );
 }

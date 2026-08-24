@@ -6,35 +6,35 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from '@dnd-kit/core'
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
-import { OTPCard } from './otp-card'
-import type { Algorithm, Digits } from '@/types'
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+import { OTPCard } from './otp-card';
+import type { Algorithm, Digits } from '@/types';
 
 export interface OTPListItem {
-  id: string
-  issuer: string
-  label: string
-  secret: string
-  algorithm: Algorithm
-  digits: Digits
-  period: number
+  id: string;
+  issuer: string;
+  label: string;
+  secret: string;
+  algorithm: Algorithm;
+  digits: Digits;
+  period: number;
 }
 
 interface OTPListProps {
-  items: OTPListItem[]
-  hideCode: boolean
-  onReorder: (newOrder: string[]) => void
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
+  items: OTPListItem[];
+  hideCode: boolean;
+  onReorder: (newOrder: string[]) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export function OTPList({
@@ -50,20 +50,20 @@ export function OTPList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
+    }),
+  );
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    const oldIndex = items.findIndex((item) => item.id === active.id)
-    const newIndex = items.findIndex((item) => item.id === over.id)
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
 
-    if (oldIndex === -1 || newIndex === -1) return
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(items, oldIndex, newIndex)
-    onReorder(reordered.map((item) => item.id))
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    onReorder(reordered.map((item) => item.id));
   }
 
   return (
@@ -89,14 +89,14 @@ export function OTPList({
         </div>
       </SortableContext>
     </DndContext>
-  )
+  );
 }
 
 interface SortableOTPCardProps {
-  item: OTPListItem
-  hideCode: boolean
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
+  item: OTPListItem;
+  hideCode: boolean;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 function SortableOTPCard({
@@ -112,17 +112,21 @@ function SortableOTPCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id })
+  } = useSortable({ id: item.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : undefined,
-  }
+  };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative flex items-center gap-1">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="relative flex items-center gap-1"
+    >
       {/* 드래그 핸들 */}
       <button
         type="button"
@@ -150,5 +154,5 @@ function SortableOTPCard({
         />
       </div>
     </div>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Copy, Check, Pencil, Trash2 } from 'lucide-react'
-import { cn } from '@/popup/lib/utils'
-import { CountdownBar } from './countdown-bar'
-import { generateTOTP } from '@/core/otp'
-import type { Algorithm, Digits } from '@/types'
+import { useState, useEffect, useCallback } from 'react';
+import { Copy, Check, Pencil, Trash2 } from 'lucide-react';
+import { cn } from '@/popup/lib/utils';
+import { CountdownBar } from './countdown-bar';
+import { generateTOTP } from '@/core/otp';
+import type { Algorithm, Digits } from '@/types';
 
 interface OTPCardProps {
-  id: string
-  issuer: string
-  label: string
-  secret: string
-  algorithm: Algorithm
-  digits: Digits
-  period: number
-  hideCode: boolean
-  onEdit: (id: string) => void
-  onDelete: (id: string) => void
+  id: string;
+  issuer: string;
+  label: string;
+  secret: string;
+  algorithm: Algorithm;
+  digits: Digits;
+  period: number;
+  hideCode: boolean;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 export function OTPCard({
@@ -30,56 +30,56 @@ export function OTPCard({
   onEdit,
   onDelete,
 }: OTPCardProps) {
-  const [code, setCode] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [hovered, setHovered] = useState(false)
+  const [code, setCode] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const refreshCode = useCallback(async () => {
     try {
-      const token = await generateTOTP(secret, algorithm, digits, period)
-      setCode(token)
+      const token = await generateTOTP(secret, algorithm, digits, period);
+      setCode(token);
     } catch {
-      setCode('------')
+      setCode('------');
     }
-  }, [secret, algorithm, digits, period])
+  }, [secret, algorithm, digits, period]);
 
   // 초기 코드 생성 + 주기적 갱신
   useEffect(() => {
-    refreshCode()
+    refreshCode();
     const interval = setInterval(() => {
-      refreshCode()
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [refreshCode])
+      refreshCode();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [refreshCode]);
 
   // 클립보드 복사
   async function handleCopy() {
-    if (!code || code === '------') return
+    if (!code || code === '------') return;
     try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      const textarea = document.createElement('textarea')
-      textarea.value = code
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   }
 
   // 코드 포맷 (3자리씩 분리)
   function formatCode(raw: string): string {
-    if (raw.length === 6) return `${raw.slice(0, 3)} ${raw.slice(3)}`
-    if (raw.length === 8) return `${raw.slice(0, 4)} ${raw.slice(4)}`
-    return raw
+    if (raw.length === 6) return `${raw.slice(0, 3)} ${raw.slice(3)}`;
+    if (raw.length === 8) return `${raw.slice(0, 4)} ${raw.slice(4)}`;
+    return raw;
   }
 
-  const showCode = !hideCode || hovered
-  const displayCode = showCode ? formatCode(code) : '••• •••'
+  const showCode = !hideCode || hovered;
+  const displayCode = showCode ? formatCode(code) : '••• •••';
 
   return (
     <div
@@ -93,12 +93,8 @@ export function OTPCard({
       {/* Content */}
       <div className="min-w-0 flex-1">
         {/* Issuer + Label */}
-        <p className="truncate text-sm font-medium text-foreground">
-          {issuer}
-        </p>
-        <p className="truncate text-xs text-muted-foreground">
-          {label}
-        </p>
+        <p className="truncate text-sm font-medium text-foreground">{issuer}</p>
+        <p className="truncate text-xs text-muted-foreground">{label}</p>
 
         {/* OTP Code */}
         <button
@@ -107,7 +103,7 @@ export function OTPCard({
           className={cn(
             'mt-0.5 inline-flex items-center gap-1.5 rounded px-1 py-0.5 font-mono text-base font-bold tracking-wider transition-colors',
             'hover:bg-secondary',
-            showCode ? 'text-foreground' : 'text-muted-foreground'
+            showCode ? 'text-foreground' : 'text-muted-foreground',
           )}
           aria-label={`OTP 코드 ${showCode ? code : '숨김'} 복사`}
           title="클릭하여 복사"
@@ -146,5 +142,5 @@ export function OTPCard({
         </button>
       </div>
     </div>
-  )
+  );
 }
