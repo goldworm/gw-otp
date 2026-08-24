@@ -33,6 +33,19 @@ describe('otp module', () => {
       const token2 = await generateTOTP(secret)
       expect(token1).toBe(token2)
     })
+
+    it('should generate consistent token for same time window', async () => {
+      const secret = createSecret()
+      const token1 = await generateTOTP(secret)
+      const token2 = await generateTOTP(secret)
+      expect(token1).toBe(token2)
+    })
+
+    it('should generate valid tokens with 80bit length secret', async () => {
+      const secret = 'C5D2GCMH32DC2MSA';
+      const token = await generateTOTP(secret);
+      expect(token).match(/\d{6}/);
+    });
   })
 
   describe('verifyTOTP', () => {
@@ -45,7 +58,6 @@ describe('otp module', () => {
 
     it('should reject an invalid token', async () => {
       const secret = createSecret()
-      const isValid = await verifyTOTP('000000', secret)
       // 통계적으로 거의 항상 false이지만, 아주 드물게 맞을 수 있으므로
       // 대신 생성한 것과 다른 코드로 테스트
       const token = await generateTOTP(secret)

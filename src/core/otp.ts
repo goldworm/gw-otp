@@ -9,7 +9,7 @@
  * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
  */
 
-import { generate, verify, generateSecret, generateURI } from 'otplib'
+import { generate, verify, generateSecret, generateURI, createGuardrails } from 'otplib'
 import type { Algorithm, Digits, ParsedOTPAuthURI } from '@/types'
 
 // ─── TOTP Generation ─────────────────────────────────────────────────────────
@@ -42,6 +42,7 @@ export async function generateTOTP(
     algorithm: ALGORITHM_MAP[algorithm],
     digits,
     period,
+    guardrails: createGuardrails({ MIN_SECRET_BYTES: 10 }),
   })
   return token
 }
