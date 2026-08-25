@@ -47,12 +47,17 @@ export interface Tag {
 /** 테마 설정 */
 export type Theme = 'light' | 'dark' | 'system';
 
+/** 자동 잠금 시간 (분). 0=팝업 닫을 때 즉시, 'never'=수동 잠금만 */
+export type AutoLockMinutes = 0 | 1 | 5 | 10 | 15 | 30 | 'never';
+
 /** 앱 설정 */
 export interface Settings {
   /** hover 시에만 OTP 코드 표시 */
   hideCodesUntilHover: boolean;
   /** 테마 설정 */
   theme: Theme;
+  /** 자동 잠금 시간 (분) */
+  autoLockMinutes: AutoLockMinutes;
   /** 마스터 비밀번호 검증용 암호문 (Base64) */
   passwordHash: string;
   /** PBKDF2 salt (Base64) */
@@ -81,6 +86,7 @@ export type MessageRequest =
   | { type: 'lock' }
   | { type: 'getStatus' }
   | { type: 'getKey' }
+  | { type: 'resetTimer' }
   | { type: 'changePassword'; currentPassword: string; newPassword: string };
 
 /** Background → Popup 응답 */

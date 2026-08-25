@@ -3,10 +3,10 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/popup/components/ui/button';
 import { Input } from '@/popup/components/ui/input';
 import { Label } from '@/popup/components/ui/label';
-import { getEntry, updateEntry } from '@/core/storage';
+import { getEntry, updateEntry, loadTags } from '@/core/storage';
 import { encrypt, decrypt } from '@/core/crypto';
 import { normalizeSecret } from '@/core/otp';
-import type { Algorithm, Digits } from '@/types';
+import type { Algorithm, Digits, Tag } from '@/types';
 
 interface EditOTPPageProps {
   entryId: string;
@@ -27,13 +27,20 @@ export function EditOTPPage({
   const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1');
   const [digits, setDigits] = useState<Digits>(6);
   const [period, setPeriod] = useState(30);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
-      const entry = await getEntry(entryId);
+      const [entry, allTags] = await Promise.all([
+        getEntry(entryId),
+        loadTags(),
+      ]);
+      setTags(allTags);
+
       if (!entry) {
         setError('항목을 찾을 수 없습니다.');
         setLoading(false);
@@ -45,6 +52,7 @@ export function EditOTPPage({
       setAlgorithm(entry.algorithm);
       setDigits(entry.digits);
       setPeriod(entry.period);
+      setSelectedTags(entry.tags);
 
       try {
         const decrypted = await decrypt(entry.encryptedSecret, sessionKey);
@@ -57,6 +65,14 @@ export function EditOTPPage({
     }
     load();
   }, [entryId, sessionKey]);
+
+  function toggleTag(tagId: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,6 +104,7 @@ export function EditOTPPage({
         algorithm,
         digits,
         period,
+        tags: selectedTags,
       });
       onSaved();
     } catch (err) {
@@ -188,6 +205,34 @@ export function EditOTPPage({
             />
           </div>
         </div>
+
+        {/* 태그 선택 */}
+        {tags.length > 0 && (
+          <div className="space-y-2">
+            <Label>태그</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    selectedTags.includes(tag.id)
+                      ? 'text-white'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                  style={
+                    selectedTags.includes(tag.id)
+                      ? { backgroundColor: tag.color }
+                      : undefined
+                  }
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-destructive" role="alert">

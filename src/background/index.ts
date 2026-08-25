@@ -23,11 +23,82 @@ import {
   reencryptAllEntries,
 } from '@/core/storage';
 
+/** 자동 잠금 알람 이름 */
+const AUTO_LOCK_ALARM = 'gw-otp-auto-lock';
+
+/** session storage 키 (SW 재시작 시 복원용) */
+const SESSION_KEY_STORAGE = 'gw-otp-session-key';
+
 /** 메모리에만 존재하는 세션 키 (디스크에 저장하지 않음) */
 let sessionKey: CryptoKey | null = null;
 
 /** 현재 잠금 해제 상태 */
 let isUnlocked = false;
+
+/**
+ * 세션 키를 chrome.storage.session에 저장한다 (SW 재시작 시 복원용).
+ * autoLockMinutes가 0이 아닌 경우에만 저장한다.
+ */
+async function persistSessionKey(key: CryptoKey) {
+  try {
+    const exported = await crypto.subtle.exportKey('raw', key);
+    const bytes = new Uint8Array(exported);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    await chrome.storage.session.set({ [SESSION_KEY_STORAGE]: base64 });
+  } catch {
+    // session storage 미지원 환경에서는 무시
+  }
+}
+
+/**
+ * chrome.storage.session에서 세션 키를 복원한다.
+ */
+async function restoreSessionKey(): Promise<CryptoKey | null> {
+  try {
+    const result = await chrome.storage.session.get(SESSION_KEY_STORAGE);
+    const base64 = result[SESSION_KEY_STORAGE] as string | undefined;
+    if (!base64) return null;
+
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return crypto.subtle.importKey(
+      'raw',
+      bytes,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * session storage에서 세션 키를 제거한다.
+ */
+async function clearPersistedSessionKey() {
+  try {
+    await chrome.storage.session.remove(SESSION_KEY_STORAGE);
+  } catch {
+    // 무시
+  }
+}
+
+// SW 시작 시 세션 복원
+restoreSessionKey().then((key) => {
+  if (key) {
+    sessionKey = key;
+    isUnlocked = true;
+  }
+});
 
 /**
  * 잠금 해제: 비밀번호 검증 후 세션 키를 메모리에 보관한다.
@@ -48,12 +119,15 @@ async function handleUnlock(
       await saveSettings({
         hideCodesUntilHover: false,
         theme: 'system',
+        autoLockMinutes: 5,
         passwordHash,
         salt,
       });
 
       sessionKey = key;
       isUnlocked = true;
+      await persistSessionKey(key);
+      await resetAutoLockAlarm();
       return { success: true };
     }
 
@@ -68,6 +142,8 @@ async function handleUnlock(
 
     sessionKey = key;
     isUnlocked = true;
+    await persistSessionKey(key);
+    await resetAutoLockAlarm();
     return { success: true };
   } catch (err) {
     return {
@@ -83,8 +159,44 @@ async function handleUnlock(
 function handleLock(): { success: boolean } {
   sessionKey = null;
   isUnlocked = false;
+  clearAutoLockAlarm();
+  clearPersistedSessionKey();
   return { success: true };
 }
+
+/**
+ * 자동 잠금 알람을 설정/리셋한다.
+ * 팝업이 열릴 때마다 호출하여 타이머를 리셋한다.
+ */
+async function resetAutoLockAlarm() {
+  const settings = await loadSettings();
+  const minutes = settings?.autoLockMinutes ?? 5;
+
+  // 기존 알람 제거
+  await chrome.alarms.clear(AUTO_LOCK_ALARM);
+
+  if (minutes === 'never' || minutes === 0) {
+    // 'never'는 알람 없음 (수동 잠금만), 0은 즉시 잠금 (SW 종료 시)
+    return;
+  }
+
+  // 알람 설정
+  chrome.alarms.create(AUTO_LOCK_ALARM, { delayInMinutes: minutes });
+}
+
+/**
+ * 자동 잠금 알람을 제거한다.
+ */
+function clearAutoLockAlarm() {
+  chrome.alarms.clear(AUTO_LOCK_ALARM);
+}
+
+// 알람 이벤트 리스너: 자동 잠금 실행
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_LOCK_ALARM) {
+    handleLock();
+  }
+});
 
 /**
  * 상태 조회: 현재 잠금 상태와 초기화 여부를 반환한다.
@@ -185,6 +297,11 @@ export function handleMessage(
     case 'getKey': {
       const result = handleGetKey();
       sendResponse({ type: 'getKey', ...result });
+      break;
+    }
+    case 'resetTimer': {
+      resetAutoLockAlarm();
+      sendResponse({ type: 'getKey', key: sessionKey ? 'active' : null });
       break;
     }
     case 'changePassword': {

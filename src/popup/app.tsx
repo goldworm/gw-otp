@@ -45,6 +45,8 @@ export function App() {
         setIsInitialized(response.isInitialized);
         if (response.isUnlocked) {
           setPage('main');
+          // 팝업 열릴 때 자동 잠금 타이머 리셋
+          chrome.runtime.sendMessage({ type: 'resetTimer' });
         } else {
           setPage('unlock');
         }

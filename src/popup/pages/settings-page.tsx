@@ -89,15 +89,17 @@ export function SettingsPage({
 
   // 태그 추가
   async function handleAddTag() {
-    if (!newTagName.trim()) return;
+    const name = newTagName.trim();
+    if (!name) return;
+    // 즉시 입력값 초기화 (중복 호출 방지)
+    setNewTagName('');
     const tag: Tag = {
       id: crypto.randomUUID(),
-      name: newTagName.trim(),
+      name,
       color: newTagColor,
     };
     await addTag(tag);
     setTags((prev) => [...prev, tag]);
-    setNewTagName('');
   }
 
   // 태그 삭제
@@ -238,16 +240,16 @@ export function SettingsPage({
   }
 
   return (
-    <div className="min-h-[500px] w-[380px] bg-background text-foreground">
+    <div className="flex h-[500px] w-[380px] flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="flex items-center gap-2 border-b px-4 py-3">
+      <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="뒤로">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-base font-semibold">설정</h1>
       </header>
 
-      <div className="space-y-6 overflow-y-auto p-4">
+      <div className="flex-1 space-y-6 overflow-y-auto p-4">
         {/* 테마 설정 */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">테마</Label>
@@ -272,6 +274,34 @@ export function SettingsPage({
             />
           </div>
         </div>
+        {/* 자동 잠금 */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">자동 잠금</Label>
+          <div className="rounded-lg border p-3">
+            <select
+              value={String(settings.autoLockMinutes ?? 5)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const parsed = val === 'never' ? 'never' : Number(val);
+                updateSetting('autoLockMinutes', parsed as Settings['autoLockMinutes']);
+              }}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+              aria-label="자동 잠금 시간"
+            >
+              <option value="0">팝업 닫을 때 즉시</option>
+              <option value="1">1분 후</option>
+              <option value="5">5분 후</option>
+              <option value="10">10분 후</option>
+              <option value="15">15분 후</option>
+              <option value="30">30분 후</option>
+              <option value="never">수동 잠금만</option>
+            </select>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              마지막 사용 후 지정 시간이 지나면 자동으로 잠금됩니다.
+            </p>
+          </div>
+        </div>
+
         {/* 프라이버시 설정 */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">프라이버시</Label>

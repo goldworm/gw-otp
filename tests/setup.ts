@@ -47,13 +47,30 @@ const chromeTabsMock = {
   captureVisibleTab: vi.fn(),
 };
 
+const chromeAlarmsMock = {
+  create: vi.fn(),
+  clear: vi.fn(() => Promise.resolve(true)),
+  onAlarm: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  },
+};
+
+const chromeStorageSessionMock = {
+  get: vi.fn((_keys: string | string[]) => Promise.resolve({})),
+  set: vi.fn(() => Promise.resolve()),
+  remove: vi.fn(() => Promise.resolve()),
+};
+
 Object.defineProperty(globalThis, 'chrome', {
   value: {
     storage: {
       sync: chromeStorageSyncMock,
+      session: chromeStorageSessionMock,
     },
     runtime: chromeRuntimeMock,
     tabs: chromeTabsMock,
+    alarms: chromeAlarmsMock,
   },
   writable: true,
 });

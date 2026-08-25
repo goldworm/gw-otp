@@ -165,9 +165,9 @@ export function MainPage({
   }
 
   return (
-    <div className="flex min-h-[500px] w-[380px] flex-col bg-background text-foreground">
+    <div className="flex h-[500px] w-[380px] flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="flex items-center justify-between border-b px-4 py-3">
+      <header className="shrink-0 flex items-center justify-between border-b px-4 py-3">
         <h1 className="text-lg font-semibold">GW-OTP</h1>
         <div className="flex items-center gap-1">
           <Button
@@ -199,7 +199,7 @@ export function MainPage({
 
       {/* Search & Filter */}
       {entries.length > 0 && (
-        <div className="space-y-2 border-b px-3 py-2">
+        <div className="shrink-0 space-y-2 border-b px-3 py-2">
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
           <TagFilter
             tags={tags}
