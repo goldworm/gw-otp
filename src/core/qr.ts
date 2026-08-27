@@ -9,6 +9,25 @@
  */
 
 import jsQR from 'jsqr';
+import QRCode from 'qrcode';
+
+/**
+ * 주어진 텍스트를 QR 코드 Data URL(PNG)로 인코딩한다.
+ *
+ * @param text - QR로 변환할 문자열 (예: otpauth:// URI)
+ * @param size - QR 이미지 크기 (px, 기본 240)
+ * @returns data:image/png;base64,... 형식의 Data URL
+ */
+export async function encodeQRToDataURL(
+  text: string,
+  size = 240,
+): Promise<string> {
+  return QRCode.toDataURL(text, {
+    width: size,
+    margin: 2,
+    errorCorrectionLevel: 'M',
+  });
+}
 
 /**
  * 이미지 파일(File 객체)에서 QR 코드를 디코딩한다.

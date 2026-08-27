@@ -201,10 +201,6 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       setError('서비스명(Issuer)을 입력하세요.');
       return;
     }
-    if (!label.trim()) {
-      setError('계정(Label)을 입력하세요.');
-      return;
-    }
     if (!secret.trim()) {
       setError('Secret을 입력하세요.');
       return;

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Check, Pencil, Trash2, QrCode } from 'lucide-react';
 import { cn } from '@/popup/lib/utils';
 import { CountdownBar } from './countdown-bar';
+import { QRModal } from './qr-modal';
 import { generateTOTP } from '@/core/otp';
 import type { Algorithm, Digits } from '@/types';
 
@@ -33,6 +34,7 @@ export function OTPCard({
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   const refreshCode = useCallback(async () => {
     try {
@@ -126,6 +128,15 @@ export function OTPCard({
       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
         <button
           type="button"
+          onClick={() => setShowQR(true)}
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          aria-label="QR 코드 표시"
+          title="QR 코드로 폰에 등록"
+        >
+          <QrCode className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
           onClick={() => onEdit(id)}
           className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label="편집"
@@ -141,6 +152,19 @@ export function OTPCard({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {/* QR 모달 */}
+      {showQR && (
+        <QRModal
+          issuer={issuer}
+          label={label}
+          secret={secret}
+          algorithm={algorithm}
+          digits={digits}
+          period={period}
+          onClose={() => setShowQR(false)}
+        />
+      )}
     </div>
   );
 }

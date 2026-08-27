@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/popup/components/ui/button';
 import { Input } from '@/popup/components/ui/input';
 import { Label } from '@/popup/components/ui/label';
@@ -7,6 +7,12 @@ import { getEntry, updateEntry, loadTags } from '@/core/storage';
 import { encrypt, decrypt } from '@/core/crypto';
 import { normalizeSecret } from '@/core/otp';
 import type { Algorithm, Digits, Tag } from '@/types';
+
+/** 첫 글자를 제외한 나머지를 마스킹한다. */
+function maskSecret(secret: string): string {
+  if (secret.length <= 1) return secret;
+  return secret[0] + '•'.repeat(secret.length - 1);
+}
 
 interface EditOTPPageProps {
   entryId: string;
@@ -29,6 +35,7 @@ export function EditOTPPage({
   const [period, setPeriod] = useState(30);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [showSecret, setShowSecret] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -80,10 +87,6 @@ export function EditOTPPage({
 
     if (!issuer.trim()) {
       setError('서비스명(Issuer)을 입력하세요.');
-      return;
-    }
-    if (!label.trim()) {
-      setError('계정(Label)을 입력하세요.');
       return;
     }
     if (!secret.trim()) {
@@ -156,13 +159,34 @@ export function EditOTPPage({
 
         <div className="space-y-2">
           <Label htmlFor="edit-secret">Secret (Base32)</Label>
-          <Input
-            id="edit-secret"
-            value={secret}
-            onChange={(e) => setSecret(e.target.value)}
-            placeholder="JBSWY3DPEHPK3PXP"
-            className="font-mono text-xs"
-          />
+          <div className="relative">
+            <Input
+              id="edit-secret"
+              value={showSecret ? secret : maskSecret(secret)}
+              onChange={(e) => setSecret(e.target.value)}
+              readOnly={!showSecret}
+              placeholder="JBSWY3DPEHPK3PXP"
+              className="pr-9 font-mono text-xs"
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowSecret((prev) => !prev)}
+              tabIndex={-1}
+              aria-label={showSecret ? 'Secret 숨기기' : 'Secret 보기'}
+            >
+              {showSecret ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+          {!showSecret && (
+            <p className="text-xs text-muted-foreground">
+              편집하려면 눈 아이콘을 눌러 Secret을 표시하세요.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-3">
