@@ -127,11 +127,17 @@ describe('background session management', () => {
       expect(response).toEqual({ type: 'getKey', key: null });
     });
 
-    it('should return "active" when unlocked', async () => {
+    it('should return the raw session key (base64) when unlocked', async () => {
       await sendMessage({ type: 'unlock', password: 'password' });
 
       const response = await sendMessage({ type: 'getKey' });
-      expect(response).toEqual({ type: 'getKey', key: 'active' });
+      expect(response.type).toBe('getKey');
+      // 실제 키가 base64 문자열로 반환됨
+      const key = (response as { key: string | null }).key;
+      expect(key).toBeTruthy();
+      expect(typeof key).toBe('string');
+      // AES-256 raw key = 32 bytes → base64 44자 (padding 포함)
+      expect((key as string).length).toBeGreaterThan(0);
     });
   });
 

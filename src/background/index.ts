@@ -41,6 +41,13 @@ let isUnlocked = false;
  */
 async function persistSessionKey(key: CryptoKey) {
   try {
+    // autoLockMinutes === 0 (팝업 닫을 때 즉시 잠금)이면 저장하지 않는다.
+    // SW 재시작 시 복원할 키가 없어 잠금 상태가 유지된다.
+    const settings = await loadSettings();
+    if (settings?.autoLockMinutes === 0) {
+      return;
+    }
+
     const exported = await crypto.subtle.exportKey('raw', key);
     const bytes = new Uint8Array(exported);
     let binary = '';
@@ -98,6 +105,18 @@ restoreSessionKey().then((key) => {
     sessionKey = key;
     isUnlocked = true;
   }
+});
+
+// 팝업 연결 감지: 팝업이 닫히면(port disconnect) autoLockMinutes === 0일 때 즉시 잠금
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'gw-otp-popup') return;
+
+  port.onDisconnect.addListener(async () => {
+    const settings = await loadSettings();
+    if (settings?.autoLockMinutes === 0) {
+      handleLock();
+    }
+  });
 });
 
 /**
@@ -213,11 +232,22 @@ async function handleGetStatus(): Promise<{
 }
 
 /**
- * 키 조회: 현재 세션 키의 존재 여부를 반환한다.
- * 실제 키는 전달하지 않고, 키가 있으면 'active' 문자열을 반환한다.
+ * 키 조회: 현재 세션 키를 raw base64로 반환한다.
+ * 잠금 해제 상태에서 팝업이 재실행될 때 키를 복원하기 위해 사용한다.
  */
-function handleGetKey(): { key: string | null } {
-  return { key: sessionKey ? 'active' : null };
+async function handleGetKey(): Promise<{ key: string | null }> {
+  if (!sessionKey) return { key: null };
+  try {
+    const exported = await crypto.subtle.exportKey('raw', sessionKey);
+    const bytes = new Uint8Array(exported);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return { key: btoa(binary) };
+  } catch {
+    return { key: null };
+  }
 }
 
 /**
@@ -295,13 +325,14 @@ export function handleMessage(
       break;
     }
     case 'getKey': {
-      const result = handleGetKey();
-      sendResponse({ type: 'getKey', ...result });
+      handleGetKey().then((result) => {
+        sendResponse({ type: 'getKey', ...result });
+      });
       break;
     }
     case 'resetTimer': {
       resetAutoLockAlarm();
-      sendResponse({ type: 'getKey', key: sessionKey ? 'active' : null });
+      sendResponse({ type: 'lock', success: true });
       break;
     }
     case 'changePassword': {

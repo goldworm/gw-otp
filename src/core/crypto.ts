@@ -88,6 +88,24 @@ export async function deriveKey(
   );
 }
 
+/**
+ * raw base64로 인코딩된 AES-GCM 키를 CryptoKey로 복원한다.
+ * Background에서 전달받은 세션 키를 Popup에서 복원할 때 사용한다.
+ *
+ * @param base64 - raw 키의 Base64 인코딩
+ * @returns CryptoKey (AES-GCM 256-bit)
+ */
+export async function importKeyFromBase64(base64: string): Promise<CryptoKey> {
+  const bytes = base64ToBuffer(base64);
+  return crypto.subtle.importKey(
+    'raw',
+    new Uint8Array(bytes) as unknown as BufferSource,
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+}
+
 // ─── Encrypt / Decrypt ───────────────────────────────────────────────────────
 
 /**

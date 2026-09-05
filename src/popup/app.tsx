@@ -5,7 +5,7 @@ import { EditOTPPage } from '@/popup/pages/edit-otp-page';
 import { AddOTPPage } from '@/popup/pages/add-otp-page';
 import { SettingsPage } from '@/popup/pages/settings-page';
 import type { Page, MessageResponse, Theme } from '@/types';
-import { deriveKey, base64ToBuffer } from '@/core/crypto';
+import { deriveKey, base64ToBuffer, importKeyFromBase64 } from '@/core/crypto';
 import { loadSettings } from '@/core/storage';
 
 export function App() {
@@ -44,9 +44,20 @@ export function App() {
       if (response.type === 'getStatus') {
         setIsInitialized(response.isInitialized);
         if (response.isUnlocked) {
-          setPage('main');
-          // 팝업 열릴 때 자동 잠금 타이머 리셋
-          chrome.runtime.sendMessage({ type: 'resetTimer' });
+          // background에서 세션 키를 받아 복원 (팝업 재실행 시 재입력 방지)
+          const keyResponse: MessageResponse = await chrome.runtime.sendMessage({
+            type: 'getKey',
+          });
+          if (keyResponse.type === 'getKey' && keyResponse.key) {
+            const key = await importKeyFromBase64(keyResponse.key);
+            setSessionKey(key);
+            setPage('main');
+            // 팝업 열릴 때 자동 잠금 타이머 리셋
+            chrome.runtime.sendMessage({ type: 'resetTimer' });
+          } else {
+            // 키 복원 실패 시 잠금 화면
+            setPage('unlock');
+          }
         } else {
           setPage('unlock');
         }
@@ -67,6 +78,14 @@ export function App() {
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
+
+  // 팝업 연결 port 유지 (닫히면 background가 감지하여 즉시 잠금 처리)
+  useEffect(() => {
+    const port = chrome.runtime.connect({ name: 'gw-otp-popup' });
+    return () => {
+      port.disconnect();
+    };
+  }, []);
 
   // 시스템 테마 변경 감지
   useEffect(() => {

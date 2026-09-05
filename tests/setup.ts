@@ -41,6 +41,15 @@ const chromeRuntimeMock = {
     addListener: vi.fn(),
     removeListener: vi.fn(),
   },
+  onConnect: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  },
+  connect: vi.fn(() => ({
+    name: 'gw-otp-popup',
+    disconnect: vi.fn(),
+    onDisconnect: { addListener: vi.fn(), removeListener: vi.fn() },
+  })),
 };
 
 const chromeTabsMock = {
