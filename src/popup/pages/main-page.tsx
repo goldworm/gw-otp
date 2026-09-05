@@ -95,14 +95,20 @@ export function MainPage({
       result = result.filter((e) => e.tags.includes(selectedTagId));
     }
 
-    // 검색 필터
+    // 검색 필터 (issuer, label, 태그 이름 매칭)
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.issuer.toLowerCase().includes(query) ||
-          e.label.toLowerCase().includes(query),
+      const tagNameById = new Map(
+        tags.map((tag) => [tag.id, tag.name.toLowerCase()]),
       );
+      result = result.filter((e) => {
+        if (e.issuer.toLowerCase().includes(query)) return true;
+        if (e.label.toLowerCase().includes(query)) return true;
+        // 항목에 할당된 태그 이름 매칭
+        return e.tags.some((tagId) =>
+          tagNameById.get(tagId)?.includes(query),
+        );
+      });
     }
 
     // 고정 항목을 항상 최상단에 배치 (그 외 순서는 entries 순서 유지)
@@ -111,7 +117,7 @@ export function MainPage({
       const pinnedB = b.pinned ? 0 : 1;
       return pinnedA - pinnedB;
     });
-  }, [entries, selectedTagId, searchQuery]);
+  }, [entries, selectedTagId, searchQuery, tags]);
 
   // 순서 변경 핸들러
   async function handleReorder(newOrder: string[]) {
