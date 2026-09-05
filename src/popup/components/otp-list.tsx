@@ -3,16 +3,18 @@ import { ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { OTPCard } from './otp-card';
 import { cn } from '@/popup/lib/utils';
 import { useI18n } from '@/popup/i18n/use-i18n';
-import type { Algorithm, Digits } from '@/types';
+import type { Algorithm, Digits, OTPType } from '@/types';
 
 export interface OTPListItem {
   id: string;
+  type?: OTPType;
   issuer: string;
   label: string;
   secret: string;
   algorithm: Algorithm;
   digits: Digits;
   period: number;
+  counter?: number;
   pinned?: boolean;
 }
 
@@ -23,6 +25,7 @@ interface OTPListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onGenerateNext: (id: string) => void;
 }
 
 export function OTPList({
@@ -32,6 +35,7 @@ export function OTPList({
   onEdit,
   onDelete,
   onTogglePin,
+  onGenerateNext,
 }: OTPListProps) {
   const { t } = useI18n();
   // 드래그 중인 항목의 인덱스
@@ -147,17 +151,20 @@ export function OTPList({
           <div className="min-w-0 flex-1">
             <OTPCard
               id={item.id}
+              type={item.type}
               issuer={item.issuer}
               label={item.label}
               secret={item.secret}
               algorithm={item.algorithm}
               digits={item.digits}
               period={item.period}
+              counter={item.counter}
               pinned={item.pinned}
               hideCode={hideCode}
               onEdit={onEdit}
               onDelete={onDelete}
               onTogglePin={onTogglePin}
+              onGenerateNext={onGenerateNext}
             />
           </div>
         </div>

@@ -12,6 +12,7 @@ import {
   deleteEntry,
   reorder,
   togglePin,
+  incrementCounter,
 } from '@/core/storage';
 import { decrypt } from '@/core/crypto';
 import { useI18n } from '@/popup/i18n/use-i18n';
@@ -154,6 +155,14 @@ export function MainPage({
     );
   }
 
+  // HOTP 다음 코드 생성 핸들러 (카운터 증가)
+  async function handleGenerateNext(id: string) {
+    const newCounter = await incrementCounter(id);
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, counter: newCounter } : e)),
+    );
+  }
+
   const hideCode = settings?.hideCodesUntilHover ?? false;
   const isFiltering = !!selectedTagId || !!searchQuery.trim();
 
@@ -260,6 +269,7 @@ export function MainPage({
             onEdit={onEditEntry}
             onDelete={handleDelete}
             onTogglePin={handleTogglePin}
+            onGenerateNext={handleGenerateNext}
           />
         )}
       </main>

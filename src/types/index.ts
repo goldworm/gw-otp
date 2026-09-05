@@ -6,10 +6,15 @@ export type Algorithm = 'SHA1' | 'SHA256' | 'SHA512';
 /** OTP 자릿수 */
 export type Digits = 6 | 8;
 
+/** OTP 방식: TOTP(시간 기반) 또는 HOTP(카운터 기반) */
+export type OTPType = 'totp' | 'hotp';
+
 /** OTP 항목 */
 export interface OTPEntry {
   /** 고유 식별자 (UUID v4) */
   id: string;
+  /** OTP 방식 (선택적, 기본 'totp' — 기존 데이터 호환) */
+  type?: OTPType;
   /** 서비스 제공자 이름 (예: Google, GitHub) */
   issuer: string;
   /** 계정 식별자 (예: hello@gmail.com) */
@@ -22,8 +27,10 @@ export interface OTPEntry {
   algorithm: Algorithm;
   /** OTP 자릿수 */
   digits: Digits;
-  /** 갱신 주기 (초) */
+  /** 갱신 주기 (초, TOTP 전용) */
   period: number;
+  /** HOTP 카운터 (HOTP 전용, 기본 0) */
+  counter?: number;
   /** 상단 고정 여부 (선택적, 기본 false) */
   pinned?: boolean;
   /** 생성 일시 (ISO 8601) */
@@ -127,8 +134,8 @@ export interface BackupFile {
 
 /** otpauth:// URI 파싱 결과 */
 export interface ParsedOTPAuthURI {
-  /** OTP 타입 (현재 totp만 지원) */
-  type: 'totp';
+  /** OTP 타입 (totp 또는 hotp) */
+  type: OTPType;
   /** 서비스 제공자 */
   issuer: string;
   /** 계정 식별자 */
@@ -139,8 +146,10 @@ export interface ParsedOTPAuthURI {
   algorithm: Algorithm;
   /** 자릿수 */
   digits: Digits;
-  /** 갱신 주기 */
+  /** 갱신 주기 (TOTP 전용) */
   period: number;
+  /** HOTP 카운터 (HOTP 전용) */
+  counter?: number;
 }
 
 // ─── Page Navigation ─────────────────────────────────────────────────────────

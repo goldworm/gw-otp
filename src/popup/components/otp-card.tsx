@@ -1,40 +1,56 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, Pencil, Trash2, QrCode, Pin, PinOff } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Pencil,
+  Trash2,
+  QrCode,
+  Pin,
+  PinOff,
+  RefreshCw,
+  Hash,
+} from 'lucide-react';
 import { cn } from '@/popup/lib/utils';
 import { CountdownBar } from './countdown-bar';
 import { QRModal } from './qr-modal';
-import { generateTOTP } from '@/core/otp';
+import { generateTOTP, generateHOTP } from '@/core/otp';
 import { useI18n } from '@/popup/i18n/use-i18n';
-import type { Algorithm, Digits } from '@/types';
+import type { Algorithm, Digits, OTPType } from '@/types';
 
 interface OTPCardProps {
   id: string;
+  type?: OTPType;
   issuer: string;
   label: string;
   secret: string;
   algorithm: Algorithm;
   digits: Digits;
   period: number;
+  counter?: number;
   pinned?: boolean;
   hideCode: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onGenerateNext: (id: string) => void;
 }
 
 export function OTPCard({
   id,
+  type,
   issuer,
   label,
   secret,
   algorithm,
   digits,
   period,
+  counter,
   pinned,
   hideCode,
   onEdit,
   onDelete,
   onTogglePin,
+  onGenerateNext,
 }: OTPCardProps) {
   const { t } = useI18n();
   const [code, setCode] = useState('');
@@ -42,23 +58,37 @@ export function OTPCard({
   const [hovered, setHovered] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
+  const isHOTP = type === 'hotp';
+
   const refreshCode = useCallback(async () => {
     try {
-      const token = await generateTOTP(secret, algorithm, digits, period);
-      setCode(token);
+      if (isHOTP) {
+        const token = await generateHOTP(
+          secret,
+          counter ?? 0,
+          algorithm,
+          digits,
+        );
+        setCode(token);
+      } else {
+        const token = await generateTOTP(secret, algorithm, digits, period);
+        setCode(token);
+      }
     } catch {
       setCode('------');
     }
-  }, [secret, algorithm, digits, period]);
+  }, [isHOTP, secret, counter, algorithm, digits, period]);
 
-  // 초기 코드 생성 + 주기적 갱신
+  // TOTP: 매 초 갱신, HOTP: counter가 바뀔 때만 갱신
   useEffect(() => {
     refreshCode();
+    if (isHOTP) return; // HOTP는 자동 갱신하지 않음
+
     const interval = setInterval(() => {
       refreshCode();
     }, 1000);
     return () => clearInterval(interval);
-  }, [refreshCode]);
+  }, [refreshCode, isHOTP]);
 
   // 클립보드 복사
   async function handleCopy() {
@@ -100,8 +130,17 @@ export function OTPCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Circular countdown */}
-      <CountdownBar period={period} size={32} />
+      {/* 왼쪽 인디케이터: TOTP는 카운트다운, HOTP는 카운터 아이콘 */}
+      {isHOTP ? (
+        <div
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground"
+          title={`HOTP · counter ${counter ?? 0}`}
+        >
+          <Hash className="h-4 w-4" />
+        </div>
+      ) : (
+        <CountdownBar period={period} size={32} />
+      )}
 
       {/* Content */}
       <div className="min-w-0 flex-1">
@@ -143,6 +182,18 @@ export function OTPCard({
           pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
         )}
       >
+        {/* HOTP: 다음 코드 생성 버튼 */}
+        {isHOTP && (
+          <button
+            type="button"
+            onClick={() => onGenerateNext(id)}
+            className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            aria-label={t('otpCard.nextCode')}
+            title={t('otpCard.nextCode')}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onTogglePin(id)}
@@ -191,12 +242,14 @@ export function OTPCard({
       {/* QR 모달 */}
       {showQR && (
         <QRModal
+          type={type}
           issuer={issuer}
           label={label}
           secret={secret}
           algorithm={algorithm}
           digits={digits}
           period={period}
+          counter={counter}
           onClose={() => setShowQR(false)}
         />
       )}

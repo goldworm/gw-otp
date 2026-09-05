@@ -16,7 +16,7 @@ import {
   generateURI,
   createGuardrails,
 } from 'otplib';
-import type { Algorithm, Digits, ParsedOTPAuthURI } from '@/types';
+import type { Algorithm, Digits, OTPType, ParsedOTPAuthURI } from '@/types';
 
 // ─── TOTP Generation ─────────────────────────────────────────────────────────
 
@@ -48,6 +48,33 @@ export async function generateTOTP(
     algorithm: ALGORITHM_MAP[algorithm],
     digits,
     period,
+    guardrails: createGuardrails({ MIN_SECRET_BYTES: 10 }),
+  });
+  return token;
+}
+
+/**
+ * HOTP 코드를 생성한다 (카운터 기반).
+ *
+ * @param secret - Base32 인코딩된 secret
+ * @param counter - HOTP 카운터 값
+ * @param algorithm - 해시 알고리즘 (기본: SHA1)
+ * @param digits - OTP 자릿수 (기본: 6)
+ * @returns 6자리 또는 8자리 OTP 문자열
+ */
+export async function generateHOTP(
+  secret: string,
+  counter: number,
+  algorithm: Algorithm = 'SHA1',
+  digits: Digits = 6,
+): Promise<string> {
+  const normalized = normalizeSecret(secret);
+  const token = await generate({
+    strategy: 'hotp',
+    secret: normalized,
+    counter,
+    algorithm: ALGORITHM_MAP[algorithm],
+    digits,
     guardrails: createGuardrails({ MIN_SECRET_BYTES: 10 }),
   });
   return token;
@@ -125,10 +152,12 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
   }
 
   const url = new URL(trimmed);
-  const type = url.hostname as 'totp' | 'hotp';
+  const type = url.hostname;
 
-  if (type !== 'totp') {
-    throw new Error(`Unsupported OTP type: ${type}. Only "totp" is supported.`);
+  if (type !== 'totp' && type !== 'hotp') {
+    throw new Error(
+      `Unsupported OTP type: ${type}. Only "totp" and "hotp" are supported.`,
+    );
   }
 
   // pathname: /Issuer:label 또는 /label
@@ -168,6 +197,24 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
     throw new Error(`Invalid period: ${params.get('period')}`);
   }
 
+  if (type === 'hotp') {
+    // HOTP는 counter 파라미터가 필수 (없으면 0으로 시작)
+    const counter = parseInt(params.get('counter') ?? '0', 10);
+    if (isNaN(counter) || counter < 0) {
+      throw new Error(`Invalid counter: ${params.get('counter')}`);
+    }
+    return {
+      type: 'hotp',
+      issuer,
+      label,
+      secret: secret.toUpperCase(),
+      algorithm,
+      digits,
+      period,
+      counter,
+    };
+  }
+
   return {
     type: 'totp',
     issuer,
@@ -202,13 +249,27 @@ function validateDigits(value: number): Digits {
  * @returns otpauth:// URI 문자열
  */
 export function buildOTPAuthURI(options: {
+  type?: OTPType;
   issuer: string;
   label: string;
   secret: string;
   algorithm?: Algorithm;
   digits?: Digits;
   period?: number;
+  counter?: number;
 }): string {
+  if (options.type === 'hotp') {
+    return generateURI({
+      strategy: 'hotp',
+      issuer: options.issuer,
+      label: options.label,
+      secret: options.secret,
+      algorithm: ALGORITHM_MAP[options.algorithm ?? 'SHA1'],
+      digits: options.digits ?? 6,
+      counter: options.counter ?? 0,
+    });
+  }
+
   return generateURI({
     strategy: 'totp',
     issuer: options.issuer,

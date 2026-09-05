@@ -13,6 +13,7 @@ import type {
   Algorithm,
   Digits,
   OTPEntry,
+  OTPType,
   ParsedOTPAuthURI,
   Tag,
 } from '@/types';
@@ -28,12 +29,14 @@ type TabMode = 'manual' | 'uri' | 'qr' | 'capture';
 export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
   const { t } = useI18n();
   const [tabMode, setTabMode] = useState<TabMode>('manual');
+  const [otpType, setOtpType] = useState<OTPType>('totp');
   const [issuer, setIssuer] = useState('');
   const [label, setLabel] = useState('');
   const [secret, setSecret] = useState('');
   const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1');
   const [digits, setDigits] = useState<Digits>(6);
   const [period, setPeriod] = useState(30);
+  const [counter, setCounter] = useState(0);
   const [uriInput, setUriInput] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -107,12 +110,14 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       setTabMode('qr'); // QR 탭에서 migration 리스트 표시
     } else {
       const parsed = parseOTPAuthURI(data);
+      setOtpType(parsed.type);
       setIssuer(parsed.issuer);
       setLabel(parsed.label);
       setSecret(parsed.secret);
       setAlgorithm(parsed.algorithm);
       setDigits(parsed.digits);
       setPeriod(parsed.period);
+      setCounter(parsed.counter ?? 0);
       setTabMode('manual');
     }
   }
@@ -137,12 +142,14 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       } else {
         // 일반 otpauth:// URI
         const parsed = parseOTPAuthURI(input);
+        setOtpType(parsed.type);
         setIssuer(parsed.issuer);
         setLabel(parsed.label);
         setSecret(parsed.secret);
         setAlgorithm(parsed.algorithm);
         setDigits(parsed.digits);
         setPeriod(parsed.period);
+        setCounter(parsed.counter ?? 0);
         setTabMode('manual');
       }
     } catch (err) {
@@ -165,6 +172,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         const now = new Date().toISOString();
         const entry: OTPEntry = {
           id: crypto.randomUUID(),
+          type: item.type,
           issuer: item.issuer,
           label: item.label,
           encryptedSecret,
@@ -172,6 +180,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
           algorithm: item.algorithm,
           digits: item.digits,
           period: item.period,
+          counter: item.type === 'hotp' ? (item.counter ?? 0) : undefined,
           createdAt: now,
           updatedAt: now,
         };
@@ -214,6 +223,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
 
       const entry: OTPEntry = {
         id: crypto.randomUUID(),
+        type: otpType,
         issuer: issuer.trim(),
         label: label.trim(),
         encryptedSecret,
@@ -221,6 +231,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         algorithm,
         digits,
         period,
+        counter: otpType === 'hotp' ? counter : undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -502,6 +513,19 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="add-type">{t('add.typeLabel')}</Label>
+              <select
+                id="add-type"
+                value={otpType}
+                onChange={(e) => setOtpType(e.target.value as OTPType)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+              >
+                <option value="totp">{t('add.typeTotp')}</option>
+                <option value="hotp">{t('add.typeHotp')}</option>
+              </select>
+            </div>
+
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="add-algorithm">{t('add.algorithmLabel')}</Label>
@@ -530,17 +554,30 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="add-period">{t('add.periodLabel')}</Label>
-                <Input
-                  id="add-period"
-                  type="number"
-                  min={10}
-                  max={120}
-                  value={period}
-                  onChange={(e) => setPeriod(Number(e.target.value))}
-                />
-              </div>
+              {otpType === 'totp' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="add-period">{t('add.periodLabel')}</Label>
+                  <Input
+                    id="add-period"
+                    type="number"
+                    min={10}
+                    max={120}
+                    value={period}
+                    onChange={(e) => setPeriod(Number(e.target.value))}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="add-counter">{t('add.counterLabel')}</Label>
+                  <Input
+                    id="add-counter"
+                    type="number"
+                    min={0}
+                    value={counter}
+                    onChange={(e) => setCounter(Number(e.target.value))}
+                  />
+                </div>
+              )}
             </div>
 
             {/* 태그 선택 */}

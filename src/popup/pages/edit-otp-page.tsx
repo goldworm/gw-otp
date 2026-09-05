@@ -7,7 +7,7 @@ import { getEntry, updateEntry, loadTags } from '@/core/storage';
 import { encrypt, decrypt } from '@/core/crypto';
 import { normalizeSecret } from '@/core/otp';
 import { useI18n } from '@/popup/i18n/use-i18n';
-import type { Algorithm, Digits, Tag } from '@/types';
+import type { Algorithm, Digits, OTPType, Tag } from '@/types';
 
 /** 첫 글자를 제외한 나머지를 마스킹한다. */
 function maskSecret(secret: string): string {
@@ -29,12 +29,14 @@ export function EditOTPPage({
   onSaved,
 }: EditOTPPageProps) {
   const { t } = useI18n();
+  const [otpType, setOtpType] = useState<OTPType>('totp');
   const [issuer, setIssuer] = useState('');
   const [label, setLabel] = useState('');
   const [secret, setSecret] = useState('');
   const [algorithm, setAlgorithm] = useState<Algorithm>('SHA1');
   const [digits, setDigits] = useState<Digits>(6);
   const [period, setPeriod] = useState(30);
+  const [counter, setCounter] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [showSecret, setShowSecret] = useState(false);
@@ -56,11 +58,13 @@ export function EditOTPPage({
         return;
       }
 
+      setOtpType(entry.type ?? 'totp');
       setIssuer(entry.issuer);
       setLabel(entry.label);
       setAlgorithm(entry.algorithm);
       setDigits(entry.digits);
       setPeriod(entry.period);
+      setCounter(entry.counter ?? 0);
       setSelectedTags(entry.tags);
 
       try {
@@ -103,12 +107,14 @@ export function EditOTPPage({
         sessionKey,
       );
       await updateEntry(entryId, {
+        type: otpType,
         issuer: issuer.trim(),
         label: label.trim(),
         encryptedSecret,
         algorithm,
         digits,
         period,
+        counter: otpType === 'hotp' ? counter : undefined,
         tags: selectedTags,
       });
       onSaved();
@@ -198,6 +204,19 @@ export function EditOTPPage({
           )}
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="edit-type">{t('edit.typeLabel')}</Label>
+          <select
+            id="edit-type"
+            value={otpType}
+            onChange={(e) => setOtpType(e.target.value as OTPType)}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+          >
+            <option value="totp">{t('edit.typeTotp')}</option>
+            <option value="hotp">{t('edit.typeHotp')}</option>
+          </select>
+        </div>
+
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
             <Label htmlFor="edit-algorithm">{t('edit.algorithmLabel')}</Label>
@@ -226,17 +245,30 @@ export function EditOTPPage({
             </select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-period">{t('edit.periodLabel')}</Label>
-            <Input
-              id="edit-period"
-              type="number"
-              min={10}
-              max={120}
-              value={period}
-              onChange={(e) => setPeriod(Number(e.target.value))}
-            />
-          </div>
+          {otpType === 'totp' ? (
+            <div className="space-y-2">
+              <Label htmlFor="edit-period">{t('edit.periodLabel')}</Label>
+              <Input
+                id="edit-period"
+                type="number"
+                min={10}
+                max={120}
+                value={period}
+                onChange={(e) => setPeriod(Number(e.target.value))}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="edit-counter">{t('edit.counterLabel')}</Label>
+              <Input
+                id="edit-counter"
+                type="number"
+                min={0}
+                value={counter}
+                onChange={(e) => setCounter(Number(e.target.value))}
+              />
+            </div>
+          )}
         </div>
 
         {/* 태그 선택 */}

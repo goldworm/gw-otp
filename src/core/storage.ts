@@ -263,6 +263,32 @@ export async function reorder(newOrder: string[]): Promise<void> {
   await saveOrder(newOrder);
 }
 
+// ─── HOTP Counter ────────────────────────────────────────────────────────────
+
+/**
+ * HOTP 항목의 카운터를 1 증가시킨다.
+ *
+ * @param id - 대상 entry ID
+ * @returns 증가 후 카운터 값
+ * @throws 항목을 찾을 수 없는 경우
+ */
+export async function incrementCounter(id: string): Promise<number> {
+  const entries = await loadEntries();
+  const index = entries.findIndex((e) => e.id === id);
+  if (index === -1) {
+    throw new Error(`Entry not found: ${id}`);
+  }
+
+  const newCounter = (entries[index].counter ?? 0) + 1;
+  entries[index] = {
+    ...entries[index],
+    counter: newCounter,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveEntries(entries);
+  return newCounter;
+}
+
 // ─── Pin ─────────────────────────────────────────────────────────────────────
 
 /**

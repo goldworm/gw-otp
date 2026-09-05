@@ -20,6 +20,7 @@ interface OtpParameters {
   algorithm: number; // 0=unspecified, 1=SHA1, 2=SHA256, 3=SHA512
   digits: number; // 0=unspecified, 1=SIX, 2=EIGHT
   type: number; // 0=unspecified, 1=HOTP, 2=TOTP
+  counter: number; // HOTP 카운터 (field 7)
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -58,9 +59,8 @@ export function parseMigrationURI(uri: string): ParsedOTPAuthURI[] {
   const otpParams = decodeMigrationPayload(bytes);
 
   // ParsedOTPAuthURI로 변환
-  return otpParams
-    .filter((p) => p.type === 2 || p.type === 0) // TOTP만 (unspecified도 TOTP로 취급)
-    .map((p) => convertToOTPAuthURI(p));
+  // TOTP(2)와 HOTP(1) 모두 지원. unspecified(0)는 TOTP로 취급.
+  return otpParams.map((p) => convertToOTPAuthURI(p));
 }
 
 /**
@@ -108,6 +108,7 @@ function decodeOtpParameters(data: Uint8Array): OtpParameters {
     algorithm: 0,
     digits: 0,
     type: 0,
+    counter: 0,
   };
 
   let offset = 0;
@@ -156,6 +157,13 @@ function decodeOtpParameters(data: Uint8Array): OtpParameters {
           const { value, newOffset: nextOffset } = readVarint(data, offset);
           offset = nextOffset;
           result.type = value;
+        }
+        break;
+      case 7: // counter (varint, HOTP 전용)
+        if (wireType === 0) {
+          const { value, newOffset: nextOffset } = readVarint(data, offset);
+          offset = nextOffset;
+          result.counter = value;
         }
         break;
       default:
@@ -267,6 +275,20 @@ function convertToOTPAuthURI(params: OtpParameters): ParsedOTPAuthURI {
 
   // digits 매핑
   const digits = mapDigits(params.digits);
+
+  // type 매핑: 1=HOTP, 그 외(2=TOTP, 0=unspecified)=TOTP
+  if (params.type === 1) {
+    return {
+      type: 'hotp',
+      issuer,
+      label,
+      secret,
+      algorithm,
+      digits,
+      period: 30,
+      counter: params.counter,
+    };
+  }
 
   return {
     type: 'totp',

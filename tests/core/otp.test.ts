@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   generateTOTP,
+  generateHOTP,
   verifyTOTP,
   getRemainingSeconds,
   getRemainingRatio,
@@ -45,6 +46,48 @@ describe('otp module', () => {
       const secret = 'C5D2GCMH32DC2MSA';
       const token = await generateTOTP(secret);
       expect(token).match(/\d{6}/);
+    });
+  });
+
+  describe('generateHOTP', () => {
+    it('should generate a 6-digit code', async () => {
+      const secret = createSecret();
+      const token = await generateHOTP(secret, 0);
+      expect(token).toMatch(/^\d{6}$/);
+    });
+
+    it('should generate different codes for different counters', async () => {
+      const secret = createSecret();
+      const token0 = await generateHOTP(secret, 0);
+      const token1 = await generateHOTP(secret, 1);
+      expect(token0).not.toBe(token1);
+    });
+
+    it('should generate the same code for the same counter', async () => {
+      const secret = createSecret();
+      const a = await generateHOTP(secret, 5);
+      const b = await generateHOTP(secret, 5);
+      expect(a).toBe(b);
+    });
+
+    it('should match RFC 4226 test vector (counter 0)', async () => {
+      // RFC 4226 Appendix D: secret "12345678901234567890" (ASCII)
+      // Base32 of that ASCII = GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ, HOTP(count=0) = 755224
+      const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+      const token = await generateHOTP(secret, 0);
+      expect(token).toBe('755224');
+    });
+
+    it('should match RFC 4226 test vector (counter 1)', async () => {
+      const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+      const token = await generateHOTP(secret, 1);
+      expect(token).toBe('287082');
+    });
+
+    it('should generate 8-digit codes', async () => {
+      const secret = createSecret();
+      const token = await generateHOTP(secret, 0, 'SHA1', 8);
+      expect(token).toMatch(/^\d{8}$/);
     });
   });
 
@@ -191,10 +234,27 @@ describe('otp module', () => {
       );
     });
 
-    it('should throw for HOTP (unsupported)', () => {
+    it('should parse HOTP URI with counter', () => {
+      const result = parseOTPAuthURI(
+        'otpauth://hotp/Test:user?secret=JBSWY3DPEHPK3PXP&counter=5',
+      );
+      expect(result.type).toBe('hotp');
+      expect(result.counter).toBe(5);
+      expect(result.secret).toBe('JBSWY3DPEHPK3PXP');
+    });
+
+    it('should default HOTP counter to 0 when missing', () => {
+      const result = parseOTPAuthURI(
+        'otpauth://hotp/Test:user?secret=JBSWY3DPEHPK3PXP',
+      );
+      expect(result.type).toBe('hotp');
+      expect(result.counter).toBe(0);
+    });
+
+    it('should throw for unsupported type', () => {
       expect(() =>
-        parseOTPAuthURI('otpauth://hotp/Test:user?secret=JBSWY3DPEHPK3PXP'),
-      ).toThrow('Only "totp" is supported');
+        parseOTPAuthURI('otpauth://foo/Test:user?secret=JBSWY3DPEHPK3PXP'),
+      ).toThrow('Unsupported OTP type');
     });
 
     it('should throw for missing secret', () => {
@@ -258,6 +318,24 @@ describe('otp module', () => {
       expect(parsed.algorithm).toBe(original.algorithm);
       expect(parsed.digits).toBe(original.digits);
       expect(parsed.period).toBe(original.period);
+    });
+
+    it('should build and parse an HOTP URI round-trip', () => {
+      const uri = buildOTPAuthURI({
+        type: 'hotp',
+        issuer: 'MyApp',
+        label: 'test@example.com',
+        secret: 'JBSWY3DPEHPK3PXP',
+        counter: 7,
+      });
+
+      expect(uri).toContain('otpauth://hotp/');
+      expect(uri).toContain('counter=7');
+
+      const parsed = parseOTPAuthURI(uri);
+      expect(parsed.type).toBe('hotp');
+      expect(parsed.counter).toBe(7);
+      expect(parsed.secret).toBe('JBSWY3DPEHPK3PXP');
     });
   });
 

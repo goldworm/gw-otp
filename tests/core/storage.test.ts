@@ -18,6 +18,7 @@ import {
   getEntry,
   reorder,
   togglePin,
+  incrementCounter,
   loadAll,
   clearAll,
 } from '@/core/storage';
@@ -351,6 +352,40 @@ describe('storage module', () => {
 
       const b = await getEntry('b');
       expect(b!.pinned).toBeFalsy();
+    });
+  });
+
+  describe('incrementCounter', () => {
+    it('should increment counter from undefined (treated as 0)', async () => {
+      const entry = createMockEntry({ id: 'h1' });
+      await addEntry(entry);
+
+      const result = await incrementCounter('h1');
+      expect(result).toBe(1);
+
+      const updated = await getEntry('h1');
+      expect(updated!.counter).toBe(1);
+    });
+
+    it('should increment an existing counter', async () => {
+      const entry = createMockEntry({ id: 'h2', counter: 5 });
+      await addEntry(entry);
+
+      const result = await incrementCounter('h2');
+      expect(result).toBe(6);
+    });
+
+    it('should increment repeatedly', async () => {
+      const entry = createMockEntry({ id: 'h3', counter: 0 });
+      await addEntry(entry);
+
+      expect(await incrementCounter('h3')).toBe(1);
+      expect(await incrementCounter('h3')).toBe(2);
+      expect(await incrementCounter('h3')).toBe(3);
+    });
+
+    it('should throw for non-existent entry', async () => {
+      await expect(incrementCounter('nope')).rejects.toThrow('Entry not found');
     });
   });
 

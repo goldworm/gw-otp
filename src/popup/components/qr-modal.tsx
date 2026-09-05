@@ -3,15 +3,17 @@ import { X } from 'lucide-react';
 import { encodeQRToDataURL } from '@/core/qr';
 import { buildOTPAuthURI } from '@/core/otp';
 import { useI18n } from '@/popup/i18n/use-i18n';
-import type { Algorithm, Digits } from '@/types';
+import type { Algorithm, Digits, OTPType } from '@/types';
 
 interface QRModalProps {
+  type?: OTPType;
   issuer: string;
   label: string;
   secret: string;
   algorithm: Algorithm;
   digits: Digits;
   period: number;
+  counter?: number;
   onClose: () => void;
 }
 
@@ -20,12 +22,14 @@ interface QRModalProps {
  * 폰의 인증 앱으로 스캔하여 OTP를 등록할 수 있다.
  */
 export function QRModal({
+  type,
   issuer,
   label,
   secret,
   algorithm,
   digits,
   period,
+  counter,
   onClose,
 }: QRModalProps) {
   const { t } = useI18n();
@@ -36,21 +40,25 @@ export function QRModal({
     async function generate() {
       try {
         const uri = buildOTPAuthURI({
+          type,
           issuer,
           label,
           secret,
           algorithm,
           digits,
           period,
+          counter,
         });
         const dataUrl = await encodeQRToDataURL(uri, 220);
         setQrDataUrl(dataUrl);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('qrModal.generateFailed'));
+        setError(
+          err instanceof Error ? err.message : t('qrModal.generateFailed'),
+        );
       }
     }
     generate();
-  }, [issuer, label, secret, algorithm, digits, period, t]);
+  }, [type, issuer, label, secret, algorithm, digits, period, counter, t]);
 
   // ESC로 닫기
   useEffect(() => {

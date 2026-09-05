@@ -211,13 +211,19 @@ describe('migration module', () => {
       expect(results[1].period).toBe(30);
     });
 
-    it('should filter out HOTP entries and keep TOTP', () => {
+    it('should include both HOTP and TOTP entries', () => {
       const uri = buildMigrationURIWithHOTP();
       const results = parseMigrationURI(uri);
 
-      expect(results).toHaveLength(1);
-      expect(results[0].issuer).toBe('TOTP');
-      expect(results[0].label).toBe('time@test.com');
+      // HOTP + TOTP 모두 포함
+      expect(results).toHaveLength(2);
+
+      const hotp = results.find((r) => r.type === 'hotp');
+      const totp = results.find((r) => r.type === 'totp');
+      expect(hotp).toBeDefined();
+      expect(hotp!.issuer).toBe('HOTP');
+      expect(totp).toBeDefined();
+      expect(totp!.issuer).toBe('TOTP');
     });
 
     it('should produce Base32 encoded secrets', () => {
