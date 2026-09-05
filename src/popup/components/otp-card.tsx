@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, Pencil, Trash2, QrCode } from 'lucide-react';
+import { Copy, Check, Pencil, Trash2, QrCode, Pin, PinOff } from 'lucide-react';
 import { cn } from '@/popup/lib/utils';
 import { CountdownBar } from './countdown-bar';
 import { QRModal } from './qr-modal';
@@ -15,9 +15,11 @@ interface OTPCardProps {
   algorithm: Algorithm;
   digits: Digits;
   period: number;
+  pinned?: boolean;
   hideCode: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
 export function OTPCard({
@@ -28,9 +30,11 @@ export function OTPCard({
   algorithm,
   digits,
   period,
+  pinned,
   hideCode,
   onEdit,
   onDelete,
+  onTogglePin,
 }: OTPCardProps) {
   const { t } = useI18n();
   const [code, setCode] = useState('');
@@ -87,7 +91,12 @@ export function OTPCard({
 
   return (
     <div
-      className="group relative flex items-center gap-3 rounded-lg border bg-card px-3 py-2 transition-colors hover:bg-accent/50"
+      className={cn(
+        'group relative flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
+        pinned
+          ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+          : 'bg-card hover:bg-accent/50',
+      )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -127,7 +136,31 @@ export function OTPCard({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div
+        className={cn(
+          'flex items-center gap-0.5 transition-opacity',
+          // 고정된 항목은 pin 버튼이 항상 보이도록, 그 외에는 hover 시 노출
+          pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onTogglePin(id)}
+          className={cn(
+            'rounded p-1 hover:bg-secondary',
+            pinned
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+          aria-label={pinned ? t('otpCard.unpin') : t('otpCard.pin')}
+          title={pinned ? t('otpCard.unpin') : t('otpCard.pin')}
+        >
+          {pinned ? (
+            <PinOff className="h-3.5 w-3.5" />
+          ) : (
+            <Pin className="h-3.5 w-3.5" />
+          )}
+        </button>
         <button
           type="button"
           onClick={() => setShowQR(true)}

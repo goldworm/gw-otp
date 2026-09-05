@@ -263,6 +263,32 @@ export async function reorder(newOrder: string[]): Promise<void> {
   await saveOrder(newOrder);
 }
 
+// ─── Pin ─────────────────────────────────────────────────────────────────────
+
+/**
+ * OTP 항목의 상단 고정(pinned) 상태를 토글한다.
+ *
+ * @param id - 대상 entry ID
+ * @returns 변경 후 pinned 상태
+ * @throws 항목을 찾을 수 없는 경우
+ */
+export async function togglePin(id: string): Promise<boolean> {
+  const entries = await loadEntries();
+  const index = entries.findIndex((e) => e.id === id);
+  if (index === -1) {
+    throw new Error(`Entry not found: ${id}`);
+  }
+
+  const newPinned = !entries[index].pinned;
+  entries[index] = {
+    ...entries[index],
+    pinned: newPinned,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveEntries(entries);
+  return newPinned;
+}
+
 // ─── Full Data Load ──────────────────────────────────────────────────────────
 
 /**

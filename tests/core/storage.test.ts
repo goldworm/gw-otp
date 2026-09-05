@@ -17,6 +17,7 @@ import {
   deleteEntry,
   getEntry,
   reorder,
+  togglePin,
   loadAll,
   clearAll,
 } from '@/core/storage';
@@ -301,6 +302,55 @@ describe('storage module', () => {
 
       const order = await loadOrder();
       expect(order).toEqual(['keep']);
+    });
+  });
+
+  describe('togglePin', () => {
+    it('should pin an unpinned entry', async () => {
+      const entry = createMockEntry({ id: 'p1' });
+      await addEntry(entry);
+
+      const result = await togglePin('p1');
+      expect(result).toBe(true);
+
+      const updated = await getEntry('p1');
+      expect(updated!.pinned).toBe(true);
+    });
+
+    it('should unpin a pinned entry', async () => {
+      const entry = createMockEntry({ id: 'p2', pinned: true });
+      await addEntry(entry);
+
+      const result = await togglePin('p2');
+      expect(result).toBe(false);
+
+      const updated = await getEntry('p2');
+      expect(updated!.pinned).toBe(false);
+    });
+
+    it('should toggle back and forth', async () => {
+      const entry = createMockEntry({ id: 'p3' });
+      await addEntry(entry);
+
+      expect(await togglePin('p3')).toBe(true);
+      expect(await togglePin('p3')).toBe(false);
+      expect(await togglePin('p3')).toBe(true);
+    });
+
+    it('should throw for non-existent entry', async () => {
+      await expect(togglePin('non-existent')).rejects.toThrow(
+        'Entry not found',
+      );
+    });
+
+    it('should not affect other entries', async () => {
+      await addEntry(createMockEntry({ id: 'a' }));
+      await addEntry(createMockEntry({ id: 'b' }));
+
+      await togglePin('a');
+
+      const b = await getEntry('b');
+      expect(b!.pinned).toBeFalsy();
     });
   });
 

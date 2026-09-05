@@ -11,6 +11,7 @@ import {
   loadTags,
   deleteEntry,
   reorder,
+  togglePin,
 } from '@/core/storage';
 import { decrypt } from '@/core/crypto';
 import { useI18n } from '@/popup/i18n/use-i18n';
@@ -104,7 +105,12 @@ export function MainPage({
       );
     }
 
-    return result;
+    // 고정 항목을 항상 최상단에 배치 (그 외 순서는 entries 순서 유지)
+    return [...result].sort((a, b) => {
+      const pinnedA = a.pinned ? 0 : 1;
+      const pinnedB = b.pinned ? 0 : 1;
+      return pinnedA - pinnedB;
+    });
   }, [entries, selectedTagId, searchQuery]);
 
   // 순서 변경 핸들러
@@ -132,6 +138,14 @@ export function MainPage({
 
     await deleteEntry(id);
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  // 고정 토글 핸들러
+  async function handleTogglePin(id: string) {
+    const newPinned = await togglePin(id);
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, pinned: newPinned } : e)),
+    );
   }
 
   const hideCode = settings?.hideCodesUntilHover ?? false;
@@ -239,6 +253,7 @@ export function MainPage({
             onReorder={isFiltering ? () => {} : handleReorder}
             onEdit={onEditEntry}
             onDelete={handleDelete}
+            onTogglePin={handleTogglePin}
           />
         )}
       </main>
@@ -246,10 +261,20 @@ export function MainPage({
   );
 }
 
-/** order 배열 순서대로 entries를 정렬한다 */
+/**
+ * entries를 정렬한다.
+ * 1순위: 고정(pinned) 항목이 먼저
+ * 2순위: order 배열 순서
+ */
 function sortByOrder(entries: OTPEntry[], order: string[]): OTPEntry[] {
   const orderMap = new Map(order.map((id, idx) => [id, idx]));
   return [...entries].sort((a, b) => {
+    // pinned 우선
+    const pinnedA = a.pinned ? 0 : 1;
+    const pinnedB = b.pinned ? 0 : 1;
+    if (pinnedA !== pinnedB) return pinnedA - pinnedB;
+
+    // order 순서
     const idxA = orderMap.get(a.id) ?? Infinity;
     const idxB = orderMap.get(b.id) ?? Infinity;
     return idxA - idxB;

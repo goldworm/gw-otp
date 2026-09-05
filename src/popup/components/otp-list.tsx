@@ -13,6 +13,7 @@ export interface OTPListItem {
   algorithm: Algorithm;
   digits: Digits;
   period: number;
+  pinned?: boolean;
 }
 
 interface OTPListProps {
@@ -21,6 +22,7 @@ interface OTPListProps {
   onReorder: (newOrder: string[]) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
 export function OTPList({
@@ -29,6 +31,7 @@ export function OTPList({
   onReorder,
   onEdit,
   onDelete,
+  onTogglePin,
 }: OTPListProps) {
   const { t } = useI18n();
   // 드래그 중인 항목의 인덱스
@@ -150,9 +153,11 @@ export function OTPList({
               algorithm={item.algorithm}
               digits={item.digits}
               period={item.period}
+              pinned={item.pinned}
               hideCode={hideCode}
               onEdit={onEdit}
               onDelete={onDelete}
+              onTogglePin={onTogglePin}
             />
           </div>
         </div>

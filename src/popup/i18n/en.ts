@@ -52,6 +52,8 @@ export const en = {
     moveUp: 'Move up',
     moveDown: 'Move down',
     dragHandle: 'Drag to reorder',
+    pin: 'Pin to top',
+    unpin: 'Unpin',
   },
   qrModal: {
     title: 'OTP QR code',

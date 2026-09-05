@@ -24,6 +24,8 @@ export interface OTPEntry {
   digits: Digits;
   /** 갱신 주기 (초) */
   period: number;
+  /** 상단 고정 여부 (선택적, 기본 false) */
+  pinned?: boolean;
   /** 생성 일시 (ISO 8601) */
   createdAt: string;
   /** 수정 일시 (ISO 8601) */
