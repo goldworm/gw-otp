@@ -6,6 +6,7 @@ import { Label } from '@/popup/components/ui/label';
 import { getEntry, updateEntry, loadTags } from '@/core/storage';
 import { encrypt, decrypt } from '@/core/crypto';
 import { normalizeSecret } from '@/core/otp';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Algorithm, Digits, Tag } from '@/types';
 
 /** 첫 글자를 제외한 나머지를 마스킹한다. */
@@ -27,6 +28,7 @@ export function EditOTPPage({
   onBack,
   onSaved,
 }: EditOTPPageProps) {
+  const { t } = useI18n();
   const [issuer, setIssuer] = useState('');
   const [label, setLabel] = useState('');
   const [secret, setSecret] = useState('');
@@ -49,7 +51,7 @@ export function EditOTPPage({
       setTags(allTags);
 
       if (!entry) {
-        setError('항목을 찾을 수 없습니다.');
+        setError(t('edit.notFound'));
         setLoading(false);
         return;
       }
@@ -65,13 +67,13 @@ export function EditOTPPage({
         const decrypted = await decrypt(entry.encryptedSecret, sessionKey);
         setSecret(decrypted);
       } catch {
-        setError('Secret 복호화에 실패했습니다.');
+        setError(t('edit.decryptFailed'));
       }
 
       setLoading(false);
     }
     load();
-  }, [entryId, sessionKey]);
+  }, [entryId, sessionKey, t]);
 
   function toggleTag(tagId: string) {
     setSelectedTags((prev) =>
@@ -86,11 +88,11 @@ export function EditOTPPage({
     setError('');
 
     if (!issuer.trim()) {
-      setError('서비스명(Issuer)을 입력하세요.');
+      setError(t('edit.errIssuer'));
       return;
     }
     if (!secret.trim()) {
-      setError('Secret을 입력하세요.');
+      setError(t('edit.errSecret'));
       return;
     }
 
@@ -111,7 +113,7 @@ export function EditOTPPage({
       });
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('edit.errSave'));
     } finally {
       setSaving(false);
     }
@@ -120,7 +122,7 @@ export function EditOTPPage({
   if (loading) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">로딩 중...</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -129,36 +131,41 @@ export function EditOTPPage({
     <div className="min-h-[500px] w-[380px] bg-background text-foreground">
       {/* Header */}
       <header className="flex items-center gap-2 border-b px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={onBack} aria-label="뒤로">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          aria-label={t('common.back')}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-base font-semibold">OTP 편집</h1>
+        <h1 className="text-base font-semibold">{t('edit.title')}</h1>
       </header>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         <div className="space-y-2">
-          <Label htmlFor="edit-issuer">서비스명 (Issuer)</Label>
+          <Label htmlFor="edit-issuer">{t('edit.issuerLabel')}</Label>
           <Input
             id="edit-issuer"
             value={issuer}
             onChange={(e) => setIssuer(e.target.value)}
-            placeholder="Google, GitHub, ..."
+            placeholder={t('edit.issuerPlaceholder')}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="edit-label">계정 (Label)</Label>
+          <Label htmlFor="edit-label">{t('edit.accountLabel')}</Label>
           <Input
             id="edit-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="user@example.com"
+            placeholder={t('edit.accountPlaceholder')}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="edit-secret">Secret (Base32)</Label>
+          <Label htmlFor="edit-secret">{t('edit.secretLabel')}</Label>
           <div className="relative">
             <Input
               id="edit-secret"
@@ -173,7 +180,9 @@ export function EditOTPPage({
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={() => setShowSecret((prev) => !prev)}
               tabIndex={-1}
-              aria-label={showSecret ? 'Secret 숨기기' : 'Secret 보기'}
+              aria-label={
+                showSecret ? t('edit.hideSecret') : t('edit.showSecret')
+              }
             >
               {showSecret ? (
                 <EyeOff className="h-4 w-4" />
@@ -184,14 +193,14 @@ export function EditOTPPage({
           </div>
           {!showSecret && (
             <p className="text-xs text-muted-foreground">
-              편집하려면 눈 아이콘을 눌러 Secret을 표시하세요.
+              {t('edit.secretHint')}
             </p>
           )}
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="edit-algorithm">알고리즘</Label>
+            <Label htmlFor="edit-algorithm">{t('edit.algorithmLabel')}</Label>
             <select
               id="edit-algorithm"
               value={algorithm}
@@ -205,7 +214,7 @@ export function EditOTPPage({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-digits">자릿수</Label>
+            <Label htmlFor="edit-digits">{t('edit.digitsLabel')}</Label>
             <select
               id="edit-digits"
               value={digits}
@@ -218,7 +227,7 @@ export function EditOTPPage({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-period">주기 (초)</Label>
+            <Label htmlFor="edit-period">{t('edit.periodLabel')}</Label>
             <Input
               id="edit-period"
               type="number"
@@ -233,7 +242,7 @@ export function EditOTPPage({
         {/* 태그 선택 */}
         {tags.length > 0 && (
           <div className="space-y-2">
-            <Label>태그</Label>
+            <Label>{t('edit.tagsLabel')}</Label>
             <div className="flex flex-wrap gap-1.5">
               {tags.map((tag) => (
                 <button
@@ -266,7 +275,7 @@ export function EditOTPPage({
 
         <Button type="submit" className="w-full" disabled={saving}>
           <Save className="mr-1 h-4 w-4" />
-          {saving ? '저장 중...' : '저장'}
+          {saving ? t('common.saving') : t('common.save')}
         </Button>
       </form>
     </div>

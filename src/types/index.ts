@@ -50,6 +50,9 @@ export type Theme = 'light' | 'dark' | 'system';
 /** 자동 잠금 시간 (분). 0=팝업 닫을 때 즉시, 'never'=수동 잠금만 */
 export type AutoLockMinutes = 0 | 1 | 5 | 10 | 15 | 30 | 'never';
 
+/** 지원 언어 */
+export type Language = 'en' | 'ko';
+
 /** 앱 설정 */
 export interface Settings {
   /** hover 시에만 OTP 코드 표시 */
@@ -58,6 +61,8 @@ export interface Settings {
   theme: Theme;
   /** 자동 잠금 시간 (분) */
   autoLockMinutes: AutoLockMinutes;
+  /** UI 언어 */
+  language: Language;
   /** 마스터 비밀번호 검증용 암호문 (Base64) */
   passwordHash: string;
   /** PBKDF2 salt (Base64) */

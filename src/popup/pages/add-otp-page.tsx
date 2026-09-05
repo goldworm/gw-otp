@@ -8,6 +8,7 @@ import { encrypt } from '@/core/crypto';
 import { parseOTPAuthURI, normalizeSecret } from '@/core/otp';
 import { decodeQRFromFile, decodeQRFromDataURL } from '@/core/qr';
 import { isMigrationURI, parseMigrationURI } from '@/core/migration';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type {
   Algorithm,
   Digits,
@@ -25,6 +26,7 @@ interface AddOTPPageProps {
 type TabMode = 'manual' | 'uri' | 'qr' | 'capture';
 
 export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
+  const { t } = useI18n();
   const [tabMode, setTabMode] = useState<TabMode>('manual');
   const [issuer, setIssuer] = useState('');
   const [label, setLabel] = useState('');
@@ -58,9 +60,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       const data = await decodeQRFromFile(file);
       handleQRData(data);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'QR 코드 인식에 실패했습니다.',
-      );
+      setError(err instanceof Error ? err.message : t('add.errQrDecode'));
     }
 
     // input 초기화 (같은 파일 재선택 가능하도록)
@@ -80,7 +80,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         currentWindow: true,
       });
       if (!tab?.id) {
-        setError('활성 탭을 찾을 수 없습니다.');
+        setError(t('add.errNoTab'));
         return;
       }
 
@@ -91,9 +91,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       const data = await decodeQRFromDataURL(dataUrl);
       handleQRData(data);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : '화면 캡처에 실패했습니다.',
-      );
+      setError(err instanceof Error ? err.message : t('add.errCapture'));
     }
   }
 
@@ -102,7 +100,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     if (isMigrationURI(data)) {
       const items = parseMigrationURI(data);
       if (items.length === 0) {
-        setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.');
+        setError(t('add.errNoMigration'));
         return;
       }
       setMigrationItems(items);
@@ -132,7 +130,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         // Google Authenticator migration URI
         const items = parseMigrationURI(input);
         if (items.length === 0) {
-          setError('마이그레이션 데이터에서 OTP 항목을 찾을 수 없습니다.');
+          setError(t('add.errNoMigration'));
           return;
         }
         setMigrationItems(items);
@@ -148,7 +146,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         setTabMode('manual');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'URI 파싱에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('add.errUriParse'));
     }
   }
 
@@ -180,13 +178,13 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         await addEntry(entry);
         imported++;
       }
-      setMigrationMessage(`${imported}개 OTP 항목을 가져왔습니다.`);
+      setMigrationMessage(t('add.imported', { count: imported }));
       setMigrationItems([]);
       setUriInput('');
       // 잠시 후 메인으로
       setTimeout(() => onAdded(), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('add.errImport'));
     } finally {
       setMigrationImporting(false);
     }
@@ -198,11 +196,11 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     setError('');
 
     if (!issuer.trim()) {
-      setError('서비스명(Issuer)을 입력하세요.');
+      setError(t('add.errIssuer'));
       return;
     }
     if (!secret.trim()) {
-      setError('Secret을 입력하세요.');
+      setError(t('add.errSecret'));
       return;
     }
 
@@ -230,7 +228,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       await addEntry(entry);
       onAdded();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('add.errSave'));
     } finally {
       setSaving(false);
     }
@@ -249,10 +247,15 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     <div className="min-h-[500px] w-[380px] bg-background text-foreground">
       {/* Header */}
       <header className="flex items-center gap-2 border-b px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={onBack} aria-label="뒤로">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          aria-label={t('common.back')}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-base font-semibold">OTP 추가</h1>
+        <h1 className="text-base font-semibold">{t('add.title')}</h1>
       </header>
 
       {/* Tab Selector */}
@@ -266,7 +269,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          수동 입력
+          {t('add.tabManual')}
         </button>
         <button
           type="button"
@@ -277,7 +280,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          URI
+          {t('add.tabUri')}
         </button>
         <button
           type="button"
@@ -288,7 +291,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          QR 이미지
+          {t('add.tabQr')}
         </button>
         <button
           type="button"
@@ -299,7 +302,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          캡처
+          {t('add.tabCapture')}
         </button>
       </div>
 
@@ -308,9 +311,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         {tabMode === 'uri' && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="uri-input">
-                otpauth:// 또는 otpauth-migration:// URI
-              </Label>
+              <Label htmlFor="uri-input">{t('add.uriLabel')}</Label>
               <textarea
                 id="uri-input"
                 value={uriInput}
@@ -327,20 +328,20 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               className="w-full"
               disabled={!uriInput.trim()}
             >
-              URI 파싱
+              {t('add.parseUri')}
             </Button>
 
             {/* Migration 항목 리스트 */}
             {migrationItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">
-                  {migrationItems.length}개 OTP 항목 발견:
+                  {t('add.itemsFound', { count: migrationItems.length })}
                 </p>
                 <div className="max-h-[200px] space-y-1 overflow-y-auto rounded border p-2">
                   {migrationItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
                       <span className="font-medium">
-                        {item.issuer || '(없음)'}
+                        {item.issuer || t('common.none')}
                       </span>
                       <span className="text-muted-foreground">
                         {item.label}
@@ -356,8 +357,8 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 >
                   <Plus className="mr-1 h-4 w-4" />
                   {migrationImporting
-                    ? '가져오는 중...'
-                    : `${migrationItems.length}개 모두 가져오기`}
+                    ? t('add.importing')
+                    : t('add.importAll', { count: migrationItems.length })}
                 </Button>
               </div>
             )}
@@ -379,17 +380,17 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         {tabMode === 'qr' && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>QR 코드 이미지 업로드</Label>
+              <Label>{t('add.qrUploadLabel')}</Label>
               <div
                 className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input px-4 py-8 transition-colors hover:border-primary hover:bg-accent/50"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  클릭하여 이미지 선택
+                  {t('add.qrClickToSelect')}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  PNG, JPG, GIF 지원 (otpauth, otpauth-migration QR)
+                  {t('add.qrFormats')}
                 </p>
               </div>
               <input
@@ -405,13 +406,13 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
             {migrationItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">
-                  {migrationItems.length}개 OTP 항목 발견:
+                  {t('add.itemsFound', { count: migrationItems.length })}
                 </p>
                 <div className="max-h-[200px] space-y-1 overflow-y-auto rounded border p-2">
                   {migrationItems.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-xs">
                       <span className="font-medium">
-                        {item.issuer || '(없음)'}
+                        {item.issuer || t('common.none')}
                       </span>
                       <span className="text-muted-foreground">
                         {item.label}
@@ -427,8 +428,8 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 >
                   <Plus className="mr-1 h-4 w-4" />
                   {migrationImporting
-                    ? '가져오는 중...'
-                    : `${migrationItems.length}개 모두 가져오기`}
+                    ? t('add.importing')
+                    : t('add.importAll', { count: migrationItems.length })}
                 </Button>
               </div>
             )}
@@ -450,14 +451,14 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         {tabMode === 'capture' && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>현재 탭 화면 캡처</Label>
+              <Label>{t('add.captureLabel')}</Label>
               <p className="text-xs text-muted-foreground">
-                현재 보고 있는 웹페이지를 캡처하여 QR 코드를 자동 인식합니다.
+                {t('add.captureHint')}
               </p>
             </div>
             <Button type="button" onClick={handleCapture} className="w-full">
               <Camera className="mr-1 h-4 w-4" />
-              화면 캡처하여 QR 인식
+              {t('add.captureButton')}
             </Button>
             {error && (
               <p className="text-sm text-destructive" role="alert">
@@ -471,27 +472,27 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         {tabMode === 'manual' && (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="add-issuer">서비스명 (Issuer)</Label>
+              <Label htmlFor="add-issuer">{t('add.issuerLabel')}</Label>
               <Input
                 id="add-issuer"
                 value={issuer}
                 onChange={(e) => setIssuer(e.target.value)}
-                placeholder="Google, GitHub, ..."
+                placeholder={t('add.issuerPlaceholder')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-label">계정 (Label)</Label>
+              <Label htmlFor="add-label">{t('add.accountLabel')}</Label>
               <Input
                 id="add-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="user@example.com"
+                placeholder={t('add.accountPlaceholder')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-secret">Secret (Base32)</Label>
+              <Label htmlFor="add-secret">{t('add.secretLabel')}</Label>
               <Input
                 id="add-secret"
                 value={secret}
@@ -503,7 +504,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
 
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="add-algorithm">알고리즘</Label>
+                <Label htmlFor="add-algorithm">{t('add.algorithmLabel')}</Label>
                 <select
                   id="add-algorithm"
                   value={algorithm}
@@ -517,7 +518,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="add-digits">자릿수</Label>
+                <Label htmlFor="add-digits">{t('add.digitsLabel')}</Label>
                 <select
                   id="add-digits"
                   value={digits}
@@ -530,7 +531,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="add-period">주기 (초)</Label>
+                <Label htmlFor="add-period">{t('add.periodLabel')}</Label>
                 <Input
                   id="add-period"
                   type="number"
@@ -545,7 +546,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
             {/* 태그 선택 */}
             {tags.length > 0 && (
               <div className="space-y-2">
-                <Label>태그</Label>
+                <Label>{t('add.tagsLabel')}</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {tags.map((tag) => (
                     <button
@@ -578,7 +579,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
 
             <Button type="submit" className="w-full" disabled={saving}>
               <Plus className="mr-1 h-4 w-4" />
-              {saving ? '저장 중...' : 'OTP 추가'}
+              {saving ? t('common.saving') : t('add.addButton')}
             </Button>
           </form>
         )}

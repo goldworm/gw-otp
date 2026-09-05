@@ -4,6 +4,7 @@ import { cn } from '@/popup/lib/utils';
 import { CountdownBar } from './countdown-bar';
 import { QRModal } from './qr-modal';
 import { generateTOTP } from '@/core/otp';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Algorithm, Digits } from '@/types';
 
 interface OTPCardProps {
@@ -31,6 +32,7 @@ export function OTPCard({
   onEdit,
   onDelete,
 }: OTPCardProps) {
+  const { t } = useI18n();
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -107,8 +109,8 @@ export function OTPCard({
             'hover:bg-secondary',
             showCode ? 'text-foreground' : 'text-muted-foreground',
           )}
-          aria-label={`OTP 코드 ${showCode ? code : '숨김'} 복사`}
-          title="클릭하여 복사"
+          aria-label={t('otpCard.copyCode')}
+          title={t('otpCard.copyCode')}
         >
           <span aria-live="off">{displayCode}</span>
           {copied ? (
@@ -119,7 +121,7 @@ export function OTPCard({
         </button>
         {copied && (
           <span className="sr-only" aria-live="polite">
-            코드가 복사되었습니다
+            {t('otpCard.copied')}
           </span>
         )}
       </div>
@@ -130,8 +132,8 @@ export function OTPCard({
           type="button"
           onClick={() => setShowQR(true)}
           className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label="QR 코드 표시"
-          title="QR 코드로 폰에 등록"
+          aria-label={t('otpCard.showQR')}
+          title={t('otpCard.showQRTitle')}
         >
           <QrCode className="h-3.5 w-3.5" />
         </button>
@@ -139,7 +141,7 @@ export function OTPCard({
           type="button"
           onClick={() => onEdit(id)}
           className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label="편집"
+          aria-label={t('otpCard.edit')}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -147,7 +149,7 @@ export function OTPCard({
           type="button"
           onClick={() => onDelete(id)}
           className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          aria-label="삭제"
+          aria-label={t('otpCard.delete')}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

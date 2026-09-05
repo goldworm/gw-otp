@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { encodeQRToDataURL } from '@/core/qr';
 import { buildOTPAuthURI } from '@/core/otp';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Algorithm, Digits } from '@/types';
 
 interface QRModalProps {
@@ -27,6 +28,7 @@ export function QRModal({
   period,
   onClose,
 }: QRModalProps) {
+  const { t } = useI18n();
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [error, setError] = useState('');
 
@@ -44,11 +46,11 @@ export function QRModal({
         const dataUrl = await encodeQRToDataURL(uri, 220);
         setQrDataUrl(dataUrl);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'QR 생성에 실패했습니다.');
+        setError(err instanceof Error ? err.message : t('qrModal.generateFailed'));
       }
     }
     generate();
-  }, [issuer, label, secret, algorithm, digits, period]);
+  }, [issuer, label, secret, algorithm, digits, period, t]);
 
   // ESC로 닫기
   useEffect(() => {
@@ -65,7 +67,7 @@ export function QRModal({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="OTP QR 코드"
+      aria-label={t('qrModal.title')}
     >
       <div
         className="relative flex w-full max-w-[300px] flex-col items-center gap-3 rounded-lg bg-card p-5 shadow-lg"
@@ -76,7 +78,7 @@ export function QRModal({
           type="button"
           onClick={onClose}
           className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label="닫기"
+          aria-label={t('qrModal.close')}
         >
           <X className="h-4 w-4" />
         </button>
@@ -97,20 +99,22 @@ export function QRModal({
         ) : qrDataUrl ? (
           <img
             src={qrDataUrl}
-            alt="OTP QR 코드"
+            alt={t('qrModal.title')}
             className="rounded bg-white p-2"
             width={220}
             height={220}
           />
         ) : (
           <div className="flex h-[220px] w-[220px] items-center justify-center">
-            <p className="text-sm text-muted-foreground">생성 중...</p>
+            <p className="text-sm text-muted-foreground">
+              {t('qrModal.generating')}
+            </p>
           </div>
         )}
 
         {/* 안내 문구 */}
         <p className="text-center text-xs text-muted-foreground">
-          폰의 인증 앱으로 스캔하여 등록하세요.
+          {t('qrModal.scanHint')}
         </p>
       </div>
     </div>

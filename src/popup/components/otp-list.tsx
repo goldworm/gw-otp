@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { OTPCard } from './otp-card';
 import { cn } from '@/popup/lib/utils';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Algorithm, Digits } from '@/types';
 
 export interface OTPListItem {
@@ -29,6 +30,7 @@ export function OTPList({
   onEdit,
   onDelete,
 }: OTPListProps) {
+  const { t } = useI18n();
   // 드래그 중인 항목의 인덱스
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   // 드롭 대상(드래그가 위에 있는) 인덱스
@@ -110,7 +112,7 @@ export function OTPList({
               onClick={() => moveUp(index)}
               disabled={index === 0}
               className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-              aria-label="위로 이동"
+              aria-label={t('otpCard.moveUp')}
             >
               <ChevronUp className="h-3.5 w-3.5" />
             </button>
@@ -121,8 +123,8 @@ export function OTPList({
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={resetDragState}
               className="cursor-grab p-0.5 text-muted-foreground hover:text-foreground active:cursor-grabbing"
-              aria-label="드래그하여 순서 변경"
-              title="드래그하여 순서 변경"
+              aria-label={t('otpCard.dragHandle')}
+              title={t('otpCard.dragHandle')}
             >
               <GripVertical className="h-3.5 w-3.5" />
             </div>
@@ -132,7 +134,7 @@ export function OTPList({
               onClick={() => moveDown(index)}
               disabled={index === items.length - 1}
               className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-              aria-label="아래로 이동"
+              aria-label={t('otpCard.moveDown')}
             >
               <ChevronDown className="h-3.5 w-3.5" />
             </button>

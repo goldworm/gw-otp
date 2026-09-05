@@ -4,15 +4,17 @@ import { MainPage } from '@/popup/pages/main-page';
 import { EditOTPPage } from '@/popup/pages/edit-otp-page';
 import { AddOTPPage } from '@/popup/pages/add-otp-page';
 import { SettingsPage } from '@/popup/pages/settings-page';
-import type { Page, MessageResponse, Theme } from '@/types';
+import type { Page, MessageResponse, Theme, Language } from '@/types';
 import { deriveKey, base64ToBuffer, importKeyFromBase64 } from '@/core/crypto';
-import { loadSettings } from '@/core/storage';
+import { loadSettings, saveSettings } from '@/core/storage';
+import { I18nProvider } from '@/popup/i18n/use-i18n';
 
 export function App() {
   const [page, setPage] = useState<Page>('unlock');
   const [isInitialized, setIsInitialized] = useState(false);
   const [sessionKey, setSessionKey] = useState<CryptoKey | null>(null);
   const [editEntryId, setEditEntryId] = useState<string | null>(null);
+  const [language, setLanguage] = useState<Language>('en');
   const [loading, setLoading] = useState(true);
 
   // 테마 적용
@@ -63,10 +65,13 @@ export function App() {
         }
       }
 
-      // 테마 로드 및 적용
+      // 테마 및 언어 로드/적용
       const settings = await loadSettings();
       if (settings) {
         applyTheme(settings.theme);
+        if (settings.language) {
+          setLanguage(settings.language);
+        }
       }
     } catch {
       setPage('unlock');
@@ -120,6 +125,9 @@ export function App() {
             const key = await deriveKey(password, salt);
             setSessionKey(key);
             applyTheme(settings.theme);
+            if (settings.language) {
+              setLanguage(settings.language);
+            }
           }
           setPage('main');
         }
@@ -154,6 +162,15 @@ export function App() {
     applyTheme(theme);
   }
 
+  // 언어 변경 핸들러 (I18nProvider → settings 저장)
+  const handleLanguageChange = useCallback(async (lang: Language) => {
+    setLanguage(lang);
+    const settings = await loadSettings();
+    if (settings) {
+      await saveSettings({ ...settings, language: lang });
+    }
+  }, []);
+
   // 비밀번호 변경 후 Popup sessionKey 갱신 핸들러
   function handlePasswordChanged(newKey: CryptoKey) {
     setSessionKey(newKey);
@@ -163,71 +180,82 @@ export function App() {
   if (loading) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">로딩 중...</p>
+        <p className="text-sm text-muted-foreground">...</p>
       </div>
     );
   }
 
   // 페이지 라우팅
-  switch (page) {
-    case 'unlock':
-      return (
-        <UnlockPage isInitialized={isInitialized} onUnlock={handleUnlock} />
-      );
+  function renderPage() {
+    switch (page) {
+      case 'unlock':
+        return (
+          <UnlockPage isInitialized={isInitialized} onUnlock={handleUnlock} />
+        );
 
-    case 'main':
-      if (!sessionKey) {
-        setPage('unlock');
-        return null;
-      }
-      return (
-        <MainPage
-          sessionKey={sessionKey}
-          onLock={handleLock}
-          onNavigate={handleNavigate}
-          onEditEntry={handleEditEntry}
-        />
-      );
+      case 'main':
+        if (!sessionKey) {
+          setPage('unlock');
+          return null;
+        }
+        return (
+          <MainPage
+            sessionKey={sessionKey}
+            onLock={handleLock}
+            onNavigate={handleNavigate}
+            onEditEntry={handleEditEntry}
+          />
+        );
 
-    case 'add':
-      if (!sessionKey) {
-        setPage('main');
-        return null;
-      }
-      return (
-        <AddOTPPage
-          sessionKey={sessionKey}
-          onBack={() => setPage('main')}
-          onAdded={() => setPage('main')}
-        />
-      );
+      case 'add':
+        if (!sessionKey) {
+          setPage('main');
+          return null;
+        }
+        return (
+          <AddOTPPage
+            sessionKey={sessionKey}
+            onBack={() => setPage('main')}
+            onAdded={() => setPage('main')}
+          />
+        );
 
-    case 'edit':
-      if (!sessionKey || !editEntryId) {
-        setPage('main');
-        return null;
-      }
-      return (
-        <EditOTPPage
-          entryId={editEntryId}
-          sessionKey={sessionKey}
-          onBack={() => setPage('main')}
-          onSaved={() => setPage('main')}
-        />
-      );
+      case 'edit':
+        if (!sessionKey || !editEntryId) {
+          setPage('main');
+          return null;
+        }
+        return (
+          <EditOTPPage
+            entryId={editEntryId}
+            sessionKey={sessionKey}
+            onBack={() => setPage('main')}
+            onSaved={() => setPage('main')}
+          />
+        );
 
-    case 'settings':
-      if (!sessionKey) {
-        setPage('main');
-        return null;
-      }
-      return (
-        <SettingsPage
-          sessionKey={sessionKey}
-          onBack={() => setPage('main')}
-          onThemeChange={handleThemeChange}
-          onPasswordChanged={handlePasswordChanged}
-        />
-      );
+      case 'settings':
+        if (!sessionKey) {
+          setPage('main');
+          return null;
+        }
+        return (
+          <SettingsPage
+            sessionKey={sessionKey}
+            onBack={() => setPage('main')}
+            onThemeChange={handleThemeChange}
+            onPasswordChanged={handlePasswordChanged}
+          />
+        );
+    }
   }
+
+  return (
+    <I18nProvider
+      initialLanguage={language}
+      onLanguageChange={handleLanguageChange}
+    >
+      {renderPage()}
+    </I18nProvider>
+  );
 }

@@ -28,7 +28,8 @@ import {
   importBackup,
 } from '@/core/backup';
 import { deriveKey, base64ToBuffer } from '@/core/crypto';
-import type { MessageResponse, Settings, Tag, Theme } from '@/types';
+import { useI18n } from '@/popup/i18n/use-i18n';
+import type { MessageResponse, Settings, Tag, Theme, Language } from '@/types';
 
 interface SettingsPageProps {
   sessionKey: CryptoKey;
@@ -43,6 +44,7 @@ export function SettingsPage({
   onThemeChange,
   onPasswordChanged,
 }: SettingsPageProps) {
+  const { t, language, setLanguage } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportPassword, setExportPassword] = useState('');
@@ -113,7 +115,7 @@ export function SettingsPage({
     setError('');
     setMessage('');
     if (!exportPassword.trim()) {
-      setError('내보내기 비밀번호를 입력하세요.');
+      setError(t('settings.errExportPassword'));
       return;
     }
 
@@ -131,10 +133,10 @@ export function SettingsPage({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setMessage('백업 파일이 다운로드되었습니다.');
+      setMessage(t('settings.exportSuccess'));
       setExportPassword('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '내보내기에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('settings.errExport'));
     } finally {
       setExporting(false);
     }
@@ -145,11 +147,11 @@ export function SettingsPage({
     setError('');
     setMessage('');
     if (!importFile) {
-      setError('백업 파일을 선택하세요.');
+      setError(t('settings.errImportFile'));
       return;
     }
     if (!importPassword.trim()) {
-      setError('내보내기 시 사용한 비밀번호를 입력하세요.');
+      setError(t('settings.errImportPassword'));
       return;
     }
 
@@ -161,13 +163,16 @@ export function SettingsPage({
       const result = await importBackup(data, sessionKey, 'merge');
 
       setMessage(
-        `가져오기 완료: ${result.imported}개 추가, ${result.skipped}개 중복 건너뜀`,
+        t('settings.importSuccess', {
+          imported: result.imported,
+          skipped: result.skipped,
+        }),
       );
       setImportPassword('');
       setImportFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      setError(err instanceof Error ? err.message : '가져오기에 실패했습니다.');
+      setError(err instanceof Error ? err.message : t('settings.errImport'));
     } finally {
       setImporting(false);
     }
@@ -179,19 +184,19 @@ export function SettingsPage({
     setPwMessage('');
 
     if (!currentPassword) {
-      setPwError('현재 비밀번호를 입력하세요.');
+      setPwError(t('settings.errCurrentPassword'));
       return;
     }
     if (!newPassword) {
-      setPwError('새 비밀번호를 입력하세요.');
+      setPwError(t('settings.errNewPassword'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwError('새 비밀번호가 일치하지 않습니다.');
+      setPwError(t('settings.errPasswordMismatch'));
       return;
     }
     if (newPassword.length < 4) {
-      setPwError('비밀번호는 4자 이상이어야 합니다.');
+      setPwError(t('settings.errPasswordShort'));
       return;
     }
 
@@ -214,17 +219,17 @@ export function SettingsPage({
             );
             onPasswordChanged(newKey);
           }
-          setPwMessage('비밀번호가 변경되었습니다.');
+          setPwMessage(t('settings.passwordChanged'));
           setCurrentPassword('');
           setNewPassword('');
           setConfirmPassword('');
         } else {
-          setPwError(response.error ?? '비밀번호 변경에 실패했습니다.');
+          setPwError(response.error ?? t('settings.errChangePassword'));
         }
       }
     } catch (err) {
       setPwError(
-        err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.',
+        err instanceof Error ? err.message : t('settings.errChangePassword'),
       );
     } finally {
       setChangingPassword(false);
@@ -234,7 +239,7 @@ export function SettingsPage({
   if (loading || !settings) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">로딩 중...</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -243,73 +248,113 @@ export function SettingsPage({
     <div className="flex h-[500px] w-[380px] flex-col bg-background text-foreground">
       {/* Header */}
       <header className="shrink-0 flex items-center gap-2 border-b px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={onBack} aria-label="뒤로">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          aria-label={t('common.back')}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-base font-semibold">설정</h1>
+        <h1 className="text-base font-semibold">{t('settings.title')}</h1>
       </header>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         {/* 테마 설정 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">테마</Label>
+          <Label className="text-sm font-medium">{t('settings.themeLabel')}</Label>
           <div className="grid grid-cols-3 gap-2">
             <ThemeButton
               icon={<Sun className="h-4 w-4" />}
-              label="라이트"
+              label={t('settings.themeLight')}
               active={settings.theme === 'light'}
               onClick={() => updateSetting('theme', 'light')}
             />
             <ThemeButton
               icon={<Moon className="h-4 w-4" />}
-              label="다크"
+              label={t('settings.themeDark')}
               active={settings.theme === 'dark'}
               onClick={() => updateSetting('theme', 'dark')}
             />
             <ThemeButton
               icon={<Monitor className="h-4 w-4" />}
-              label="시스템"
+              label={t('settings.themeSystem')}
               active={settings.theme === 'system'}
               onClick={() => updateSetting('theme', 'system')}
             />
           </div>
         </div>
+
+        {/* 언어 설정 */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">
+            {t('settings.languageLabel')}
+          </Label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as Language)}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+            aria-label={t('settings.languageLabel')}
+          >
+            <option value="en">{t('settings.langEn')}</option>
+            <option value="ko">{t('settings.langKo')}</option>
+          </select>
+        </div>
         {/* 자동 잠금 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">자동 잠금</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.autoLockLabel')}
+          </Label>
           <div className="rounded-lg border p-3">
             <select
               value={String(settings.autoLockMinutes ?? 5)}
               onChange={(e) => {
                 const val = e.target.value;
                 const parsed = val === 'never' ? 'never' : Number(val);
-                updateSetting('autoLockMinutes', parsed as Settings['autoLockMinutes']);
+                updateSetting(
+                  'autoLockMinutes',
+                  parsed as Settings['autoLockMinutes'],
+                );
               }}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
-              aria-label="자동 잠금 시간"
+              aria-label={t('settings.autoLockLabel')}
             >
-              <option value="0">팝업 닫을 때 즉시</option>
-              <option value="1">1분 후</option>
-              <option value="5">5분 후</option>
-              <option value="10">10분 후</option>
-              <option value="15">15분 후</option>
-              <option value="30">30분 후</option>
-              <option value="never">수동 잠금만</option>
+              <option value="0">{t('settings.autoLockImmediate')}</option>
+              <option value="1">
+                {t('settings.autoLockAfterMinutes', { minutes: 1 })}
+              </option>
+              <option value="5">
+                {t('settings.autoLockAfterMinutes', { minutes: 5 })}
+              </option>
+              <option value="10">
+                {t('settings.autoLockAfterMinutes', { minutes: 10 })}
+              </option>
+              <option value="15">
+                {t('settings.autoLockAfterMinutes', { minutes: 15 })}
+              </option>
+              <option value="30">
+                {t('settings.autoLockAfterMinutes', { minutes: 30 })}
+              </option>
+              <option value="never">{t('settings.autoLockManual')}</option>
             </select>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              마지막 사용 후 지정 시간이 지나면 자동으로 잠금됩니다.
+              {t('settings.autoLockHint')}
             </p>
           </div>
         </div>
 
         {/* 프라이버시 설정 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">프라이버시</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.privacyLabel')}
+          </Label>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">OTP 코드 숨기기</p>
+              <p className="text-sm font-medium">
+                {t('settings.hideCodesTitle')}
+              </p>
               <p className="text-xs text-muted-foreground">
-                마우스를 올릴 때만 코드 표시
+                {t('settings.hideCodesHint')}
               </p>
             </div>
             <button
@@ -338,7 +383,9 @@ export function SettingsPage({
         </div>
         {/* 태그 관리 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">태그 관리</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.tagManageLabel')}
+          </Label>
           <div className="space-y-2 rounded-lg border p-3">
             {/* 기존 태그 목록 */}
             {tags.length > 0 && (
@@ -354,7 +401,7 @@ export function SettingsPage({
                       type="button"
                       onClick={() => handleDeleteTag(tag.id)}
                       className="rounded-full p-0.5 hover:bg-white/20"
-                      aria-label={`${tag.name} 태그 삭제`}
+                      aria-label={t('settings.deleteTag', { name: tag.name })}
                     >
                       <X className="h-2.5 w-2.5" />
                     </button>
@@ -364,7 +411,7 @@ export function SettingsPage({
             )}
             {tags.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                등록된 태그가 없습니다.
+                {t('settings.noTags')}
               </p>
             )}
 
@@ -375,12 +422,12 @@ export function SettingsPage({
                 value={newTagColor}
                 onChange={(e) => setNewTagColor(e.target.value)}
                 className="h-7 w-7 cursor-pointer rounded border-0 p-0"
-                aria-label="태그 색상"
+                aria-label={t('settings.tagColor')}
               />
               <Input
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="새 태그 이름"
+                placeholder={t('settings.newTagPlaceholder')}
                 className="h-7 flex-1 text-xs"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -404,11 +451,13 @@ export function SettingsPage({
         </div>
         {/* 비밀번호 변경 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">비밀번호 변경</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.changePasswordLabel')}
+          </Label>
           <div className="space-y-2 rounded-lg border p-3">
             <Input
               type="password"
-              placeholder="현재 비밀번호"
+              placeholder={t('settings.currentPassword')}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="h-8 text-xs"
@@ -416,7 +465,7 @@ export function SettingsPage({
             />
             <Input
               type="password"
-              placeholder="새 비밀번호"
+              placeholder={t('settings.newPassword')}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="h-8 text-xs"
@@ -424,7 +473,7 @@ export function SettingsPage({
             />
             <Input
               type="password"
-              placeholder="새 비밀번호 확인"
+              placeholder={t('settings.confirmNewPassword')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="h-8 text-xs"
@@ -443,7 +492,9 @@ export function SettingsPage({
               disabled={changingPassword}
             >
               <KeyRound className="mr-1 h-3.5 w-3.5" />
-              {changingPassword ? '변경 중...' : '비밀번호 변경'}
+              {changingPassword
+                ? t('settings.changingPassword')
+                : t('settings.changePasswordButton')}
             </Button>
             {pwMessage && (
               <p className="text-xs text-green-600 dark:text-green-400">
@@ -458,14 +509,16 @@ export function SettingsPage({
           </div>
         </div>
         <div className="space-y-3">
-          <Label className="text-sm font-medium">데이터 내보내기</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.exportLabel')}
+          </Label>
           <div className="space-y-2 rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">
-              모든 OTP 데이터를 암호화된 파일로 저장합니다.
+              {t('settings.exportHint')}
             </p>
             <Input
               type="password"
-              placeholder="내보내기 비밀번호"
+              placeholder={t('settings.exportPasswordPlaceholder')}
               value={exportPassword}
               onChange={(e) => setExportPassword(e.target.value)}
               className="h-8 text-xs"
@@ -477,16 +530,18 @@ export function SettingsPage({
               disabled={exporting}
             >
               <Download className="mr-1 h-3.5 w-3.5" />
-              {exporting ? '내보내기 중...' : '내보내기'}
+              {exporting ? t('settings.exporting') : t('settings.exportButton')}
             </Button>
           </div>
         </div>
         {/* 가져오기 */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">데이터 가져오기</Label>
+          <Label className="text-sm font-medium">
+            {t('settings.importLabel')}
+          </Label>
           <div className="space-y-2 rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">
-              .gw-otp 백업 파일에서 데이터를 복원합니다.
+              {t('settings.importHint')}
             </p>
             <input
               ref={fileInputRef}
@@ -497,7 +552,7 @@ export function SettingsPage({
             />
             <Input
               type="password"
-              placeholder="내보내기 시 사용한 비밀번호"
+              placeholder={t('settings.importPasswordPlaceholder')}
               value={importPassword}
               onChange={(e) => setImportPassword(e.target.value)}
               className="h-8 text-xs"
@@ -509,7 +564,7 @@ export function SettingsPage({
               disabled={importing || !importFile}
             >
               <Upload className="mr-1 h-3.5 w-3.5" />
-              {importing ? '가져오기 중...' : '가져오기'}
+              {importing ? t('settings.importing') : t('settings.importButton')}
             </Button>
           </div>
         </div>

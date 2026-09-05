@@ -1,4 +1,5 @@
 import { cn } from '@/popup/lib/utils';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Tag } from '@/types';
 
 interface TagFilterProps {
@@ -14,6 +15,7 @@ export function TagFilter({
   onSelect,
   className,
 }: TagFilterProps) {
+  const { t } = useI18n();
   if (tags.length === 0) return null;
 
   return (
@@ -29,7 +31,7 @@ export function TagFilter({
             : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         )}
       >
-        전체
+        {t('main.allTags')}
       </button>
 
       {/* 태그 버튼들 */}

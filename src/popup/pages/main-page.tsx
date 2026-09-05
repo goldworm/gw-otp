@@ -13,6 +13,7 @@ import {
   reorder,
 } from '@/core/storage';
 import { decrypt } from '@/core/crypto';
+import { useI18n } from '@/popup/i18n/use-i18n';
 import type { OTPEntry, Tag, Settings as AppSettings } from '@/types';
 
 interface MainPageProps {
@@ -33,6 +34,7 @@ export function MainPage({
   onNavigate,
   onEditEntry,
 }: MainPageProps) {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<DecryptedEntry[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -73,11 +75,11 @@ export function MainPage({
       setTags(tags);
       setSettings(settings);
     } catch {
-      setLoadError('데이터를 불러오는 데 실패했습니다.');
+      setLoadError(t('main.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [sessionKey]);
+  }, [sessionKey, t]);
 
   useEffect(() => {
     loadData();
@@ -125,7 +127,7 @@ export function MainPage({
 
   // 삭제 핸들러
   async function handleDelete(id: string) {
-    const confirmed = window.confirm('이 OTP 항목을 삭제하시겠습니까?');
+    const confirmed = window.confirm(t('main.deleteConfirm'));
     if (!confirmed) return;
 
     await deleteEntry(id);
@@ -138,7 +140,7 @@ export function MainPage({
   if (loading) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">로딩 중...</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -158,7 +160,7 @@ export function MainPage({
             loadData();
           }}
         >
-          다시 시도
+          {t('main.retry')}
         </Button>
       </div>
     );
@@ -174,7 +176,7 @@ export function MainPage({
             variant="ghost"
             size="icon"
             onClick={() => onNavigate('add')}
-            aria-label="OTP 추가"
+            aria-label={t('main.add')}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -182,7 +184,7 @@ export function MainPage({
             variant="ghost"
             size="icon"
             onClick={() => onNavigate('settings')}
-            aria-label="설정"
+            aria-label={t('main.settings')}
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -190,7 +192,7 @@ export function MainPage({
             variant="ghost"
             size="icon"
             onClick={onLock}
-            aria-label="잠금"
+            aria-label={t('main.lock')}
           >
             <Lock className="h-4 w-4" />
           </Button>
@@ -213,9 +215,7 @@ export function MainPage({
       <main className="flex-1 overflow-y-auto p-3">
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              등록된 OTP가 없습니다.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('main.empty')}</p>
             <Button
               variant="outline"
               size="sm"
@@ -223,13 +223,13 @@ export function MainPage({
               onClick={() => onNavigate('add')}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              OTP 추가
+              {t('main.addOtp')}
             </Button>
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="text-sm text-muted-foreground">
-              검색 결과가 없습니다.
+              {t('main.noResults')}
             </p>
           </div>
         ) : (

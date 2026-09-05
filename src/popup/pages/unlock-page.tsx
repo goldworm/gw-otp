@@ -3,6 +3,7 @@ import { Button } from '@/popup/components/ui/button';
 import { Input } from '@/popup/components/ui/input';
 import { Label } from '@/popup/components/ui/label';
 import { Lock, Eye, EyeOff } from 'lucide-react';
+import { useI18n } from '@/popup/i18n/use-i18n';
 
 interface UnlockPageProps {
   isInitialized: boolean;
@@ -10,6 +11,7 @@ interface UnlockPageProps {
 }
 
 export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,12 +25,12 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
     setError('');
 
     if (isSetup && password !== confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
+      setError(t('unlock.mismatch'));
       return;
     }
 
     if (password.length < 4) {
-      setError('비밀번호는 최소 4자 이상이어야 합니다.');
+      setError(t('unlock.tooShort'));
       return;
     }
 
@@ -36,10 +38,10 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
     try {
       const result = await onUnlock(password);
       if (!result.success) {
-        setError(result.error ?? '잠금 해제에 실패했습니다.');
+        setError(result.error ?? t('unlock.unlockFailed'));
       }
     } catch {
-      setError('오류가 발생했습니다.');
+      setError(t('unlock.genericError'));
     } finally {
       setLoading(false);
     }
@@ -53,14 +55,14 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
         </div>
         <h1 className="text-xl font-semibold text-foreground">GW-OTP</h1>
         <p className="text-sm text-muted-foreground">
-          {isSetup ? '마스터 비밀번호를 설정하세요' : '비밀번호를 입력하세요'}
+          {isSetup ? t('unlock.setupSubtitle') : t('unlock.unlockSubtitle')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full max-w-[280px] space-y-4">
         <div className="space-y-2">
           <Label htmlFor="password">
-            {isSetup ? '새 비밀번호' : '비밀번호'}
+            {isSetup ? t('unlock.newPassword') : t('unlock.password')}
           </Label>
           <div className="relative">
             <Input
@@ -68,7 +70,7 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호 입력"
+              placeholder={t('unlock.passwordPlaceholder')}
               autoFocus
               disabled={loading}
             />
@@ -77,7 +79,9 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={() => setShowPassword((prev) => !prev)}
               tabIndex={-1}
-              aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              aria-label={
+                showPassword ? t('unlock.hidePassword') : t('unlock.showPassword')
+              }
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -90,13 +94,15 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
 
         {isSetup && (
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">비밀번호 확인</Label>
+            <Label htmlFor="confirm-password">
+              {t('unlock.confirmPassword')}
+            </Label>
             <Input
               id="confirm-password"
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="비밀번호 다시 입력"
+              placeholder={t('unlock.confirmPasswordPlaceholder')}
               disabled={loading}
             />
           </div>
@@ -109,14 +115,17 @@ export function UnlockPage({ isInitialized, onUnlock }: UnlockPageProps) {
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? '처리 중...' : isSetup ? '비밀번호 설정' : '잠금 해제'}
+          {loading
+            ? t('common.processing')
+            : isSetup
+              ? t('unlock.setupButton')
+              : t('unlock.unlockButton')}
         </Button>
       </form>
 
       {isSetup && (
         <p className="mt-4 max-w-[280px] text-center text-xs text-muted-foreground">
-          이 비밀번호는 OTP 데이터를 암호화하는 데 사용됩니다. 분실 시 복구할 수
-          없으니 안전하게 보관하세요.
+          {t('unlock.setupHint')}
         </p>
       )}
     </div>

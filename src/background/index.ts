@@ -139,6 +139,7 @@ async function handleUnlock(
         hideCodesUntilHover: false,
         theme: 'system',
         autoLockMinutes: 5,
+        language: 'en',
         passwordHash,
         salt,
       });
