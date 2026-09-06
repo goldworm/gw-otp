@@ -2,14 +2,14 @@
   "manifest_version": 3,
   "name": "GW-OTP",
   "version": "1.0.0",
-  "description": "OTP 인증 코드 관리 크롬 확장 프로그램",
-  "permissions": ["storage", "activeTab", "clipboardWrite", "alarms"],
+  "description": "Manage TOTP/HOTP authentication codes locally, encrypted with your master password. Nothing is synced to the cloud.",
+  "permissions": ["storage", "activeTab", "alarms"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {
-      "16": "public/icons/icon-16.png",
-      "48": "public/icons/icon-48.png",
-      "128": "public/icons/icon-128.png"
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
     }
   },
   "background": {
@@ -17,8 +17,8 @@
     "type": "module"
   },
   "icons": {
-    "16": "public/icons/icon-16.png",
-    "48": "public/icons/icon-48.png",
-    "128": "public/icons/icon-128.png"
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   }
 }
