@@ -1,0 +1,49 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Deep navy background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <!-- Gold gradient for the worm -->
+    <linearGradient id="gold" x1="30" y1="24" x2="98" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="goldTrack" x1="0" y1="0" x2="0" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- OTP countdown ring (time-based): dark track + gold progress arc -->
+  <circle cx="64" cy="64" r="42" fill="none" stroke="#334155" stroke-width="7"/>
+  <!-- Progress arc: ~72% of the ring, rounded caps, starting at top -->
+  <path d="M64 22
+           A42 42 0 1 1 27.6 85"
+        fill="none" stroke="url(#goldTrack)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Golden worm: a bold coiled body with a head, centered inside the ring -->
+  <g stroke="url(#gold)" stroke-linecap="round" fill="none">
+    <!-- Worm body as a smooth S/coil curve -->
+    <path d="M45 84
+             C 38 68, 54 58, 61 66
+             C 70 76, 78 58, 73 47
+             C 70 40, 79 34, 86 41"
+          stroke-width="13"/>
+  </g>
+  <!-- Segment separations to read as a 'worm' (subtle, hidden at tiny sizes) -->
+  <g stroke="#0f172a" stroke-width="2.4" stroke-linecap="round" opacity="0.5">
+    <path d="M50 77 C 52 73, 57 72, 59 75"/>
+    <path d="M61 65 C 64 61, 69 61, 71 65"/>
+    <path d="M73 51 C 76 48, 80 48, 82 52"/>
+  </g>
+  <!-- Worm head -->
+  <circle cx="87" cy="41" r="8.5" fill="url(#gold)"/>
+  <!-- Eye -->
+  <circle cx="89.5" cy="38.5" r="2.1" fill="#0f172a"/>
+</svg>
