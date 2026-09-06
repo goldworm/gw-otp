@@ -1,7 +1,10 @@
 {
   "name": "gw-otp",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A Chrome extension for managing OTP (TOTP/HOTP) codes, encrypted locally with a master password.",
+  "license": "MIT",
+  "author": "goldworm",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +12,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "icons": "node scripts/render-icons.mjs",
+    "package": "node scripts/package.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -40,6 +45,7 @@
     "globals": "^17.7.0",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.65.0",
