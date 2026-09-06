@@ -1,80 +1,86 @@
 # GW-OTP
 
-OTP(TOTP) 인증 코드를 관리하는 크롬 확장 프로그램.
+A Chrome extension for managing OTP (TOTP/HOTP) authentication codes. All data
+is encrypted with your master password and stored **locally on your device** —
+nothing is ever synced to the cloud or sent to any server.
 
-## 기능
+## Features
 
-- **OTP 등록**: 수동 입력, otpauth:// URI 붙여넣기, QR 이미지 업로드, 화면 캡처
-- **OTP 관리**: 편집, 삭제, 드래그앤드롭 순서 조정
-- **태그 & 검색**: 태그 기반 그룹핑, issuer/label 검색 필터
-- **보안**: 마스터 비밀번호 기반 AES-256-GCM 암호화, 세션 기반 잠금 + 수동 잠금
-- **편의 기능**: 클릭 복사, 카운트다운 바, 내보내기/가져오기 (.gw-otp)
-- **프라이버시**: 마우스 hover 시에만 OTP 코드 표시 (설정)
-- **테마**: 라이트 / 다크 / 시스템
+- **Add OTP**: manual entry, paste an `otpauth://` URI, upload a QR image, or capture the screen
+- **Google Authenticator import**: parse `otpauth-migration://` URIs to import multiple accounts at once
+- **Manage**: edit, delete, drag-and-drop reordering, pin-to-top
+- **Tags & search**: tag-based grouping, filter by issuer/label/tag name
+- **Security**: master-password-based AES-256-GCM encryption, session-based lock + auto-lock + manual lock
+- **Convenience**: click-to-copy, circular countdown, export/import (`.gw-otp`)
+- **Privacy**: option to reveal OTP codes only on hover
+- **Theme**: light / dark / system
+- **i18n**: English / Korean
 
-## 기술 스택
+## Tech Stack
 
 - React 19, TypeScript, Vite
-- @crxjs/vite-plugin (Chrome Extension MV3 빌드)
+- @crxjs/vite-plugin (Chrome Extension MV3 build)
 - Tailwind CSS v4 + shadcn/ui
-- otplib (TOTP 생성)
-- jsQR (QR 디코딩)
-- @dnd-kit (드래그앤드롭)
+- otplib (TOTP/HOTP generation)
+- jsQR (QR decoding), qrcode (QR encoding)
 - Web Crypto API (PBKDF2 + AES-GCM)
-- Vitest (단위 테스트)
+- Vitest (unit tests)
 
-## 시작하기
+## Getting Started
 
 ```bash
-# 의존성 설치
+# Install dependencies
 pnpm install
 
-# 개발 서버 (HMR)
+# Dev server (HMR)
 pnpm dev
 
-# 빌드
+# Build
 pnpm build
 
-# 테스트
+# Test
 pnpm test
 
-# 테스트 (watch 모드)
+# Test (watch mode)
 pnpm test:watch
 ```
 
-## Chrome에 로드하기
+## Load in Chrome
 
-1. `pnpm build` 실행
-2. Chrome에서 `chrome://extensions` 이동
-3. "개발자 모드" 활성화
-4. "압축해제된 확장 프로그램을 로드합니다" 클릭
-5. `dist` 폴더 선택
+1. Run `pnpm build`
+2. Open `chrome://extensions` in Chrome
+3. Enable "Developer mode"
+4. Click "Load unpacked"
+5. Select the `dist` folder
 
-개발 중에는 `pnpm dev`를 실행하면 HMR이 적용된 확장 프로그램을 바로 테스트할 수 있습니다.
+During development, run `pnpm dev` to test the extension with HMR applied.
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 src/
-├─ background/       # Service Worker (세션 관리)
-├─ core/             # 비즈니스 로직 (UI 무관, 순수 TypeScript)
-│  ├─ crypto.ts      # 암호화/복호화 (PBKDF2 + AES-GCM)
-│  ├─ storage.ts     # chrome.storage.sync CRUD + 청크 분할
-│  ├─ otp.ts         # TOTP 생성/검증/URI 파싱
-│  ├─ qr.ts          # QR 코드 디코딩
-│  └─ backup.ts      # 내보내기/가져오기
+├─ background/       # Service Worker (session management)
+├─ core/             # Business logic (UI-agnostic, pure TypeScript)
+│  ├─ crypto.ts      # Encryption/decryption (PBKDF2 + AES-GCM)
+│  ├─ storage.ts     # chrome.storage.local CRUD + chunk splitting
+│  ├─ otp.ts         # TOTP/HOTP generation, verification, URI parsing
+│  ├─ qr.ts          # QR code encoding/decoding
+│  ├─ migration.ts   # Google Authenticator migration URI parsing
+│  └─ backup.ts      # Export/import
 ├─ popup/            # React UI
-│  ├─ components/    # 공유 컴포넌트
-│  ├─ pages/         # 페이지 컴포넌트
-│  └─ lib/           # 유틸리티
-└─ types/            # 공유 타입 정의
-tests/               # Vitest 단위 테스트
-docs/                # 설계 문서
+│  ├─ components/    # Shared components
+│  ├─ pages/         # Page components
+│  ├─ i18n/          # Internationalization (en/ko)
+│  └─ lib/           # Utilities
+└─ types/            # Shared type definitions
+tests/               # Vitest unit tests
+docs/                # Design and policy documents
 ```
 
-## 아키텍처
+## Architecture
 
-Core 레이어와 UI 레이어가 분리되어 있어, UI 프레임워크를 교체해도 비즈니스 로직을 재사용할 수 있습니다.
+The Core layer and the UI layer are kept separate, so the business logic can be
+reused even if the UI framework changes.
 
 ```
 UI (popup) ──► Core ◄── Background
@@ -82,6 +88,19 @@ UI (popup) ──► Core ◄── Background
      └───── Messages ────────┘
 ```
 
-## 라이선스
+## Data Storage & Privacy
 
-Private
+All OTP secrets, tags, settings, and ordering are stored in
+`chrome.storage.local`, which never leaves the device. OTP secrets are always
+stored encrypted (AES-256-GCM) using a key derived from your master password
+(PBKDF2, 600,000 iterations). The decryption key exists only in memory and is
+discarded when the session locks. See [docs/privacy-policy.md](docs/privacy-policy.md).
+
+## Contributing
+
+Contributions are welcome. Please open an issue or a pull request. Code comments
+and documentation are written in English.
+
+## License
+
+Released under the [MIT License](LICENSE).

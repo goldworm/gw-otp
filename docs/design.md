@@ -1,71 +1,75 @@
-# GW-OTP Chrome Extension - 설계 문서
+# GW-OTP Chrome Extension - Design Document
 
-## 1. 프로젝트 개요
+## 1. Project Overview
 
-GW-OTP는 TOTP(Time-based One-Time Password) 코드를 관리하는 크롬 확장 프로그램이다. 사용자가 팝업에서 OTP를 등록, 수정, 삭제, 그룹화, 검색하고 코드를 확인할 수 있으며, 마스터 비밀번호로 데이터를 암호화하여 `chrome.storage.sync`에 저장한다.
+GW-OTP is a Chrome extension for managing OTP (TOTP and HOTP) codes. From the
+popup, users can add, edit, delete, group, search, and view OTP codes. Data is
+encrypted with a master password and stored in `chrome.storage.local`, so
+sensitive secrets never leave the device.
 
-## 2. 요구사항 요약
+## 2. Requirements Summary
 
-| #   | 요구사항    | 설명                                                              |
-| --- | ----------- | ----------------------------------------------------------------- |
-| 1   | OTP 등록    | 수동 입력, QR 이미지 업로드, 화면 캡처, `otpauth://` URI 붙여넣기 |
-| 2   | OTP 관리    | 항목 수정 (issuer, label, secret, tags 등), 항목 삭제 (확인 후)   |
-| 3   | OTP 표시    | 리스트형 + 검색/필터 + 태그 기반 그룹핑                           |
-| 4   | OTP 카드    | issuer와 label(id) 표시, 드래그앤드롭 순서 조정                   |
-| 5   | 보안        | 마스터 비밀번호 암호화, 세션 기반 잠금 + 수동 잠금                |
-| 6   | 편의 기능   | 클립보드 복사, 카운트다운 표시, 내보내기/가져오기                 |
-| 7   | 프라이버시  | 마우스 hover 시에만 OTP 코드 표시 (설정 토글)                     |
-| 8   | 테마        | 라이트/다크/시스템 테마 전환 지원                                 |
-| 9   | 코드 컨벤션 | 모든 파일명 kebab-case                                            |
-| 10  | 테스트      | Vitest 사용                                                       |
+| #   | Requirement     | Description                                                          |
+| --- | --------------- | ------------------------------------------------------------------- |
+| 1   | Add OTP         | Manual entry, QR image upload, screen capture, `otpauth://` URI paste, `otpauth-migration://` import |
+| 2   | Manage OTP      | Edit an entry (issuer, label, secret, tags, etc.), delete (after confirmation) |
+| 3   | Display OTP     | List view + search/filter + tag-based grouping                      |
+| 4   | OTP card        | Show issuer and label(id), drag-and-drop reordering, pin-to-top     |
+| 5   | Security        | Master-password encryption, session-based lock + auto-lock + manual lock |
+| 6   | Convenience     | Clipboard copy, countdown display, export/import                    |
+| 7   | Privacy         | Show OTP codes only on hover (settings toggle)                      |
+| 8   | Theme           | Light / dark / system theme switching                               |
+| 9   | Code convention | All file names in kebab-case                                        |
+| 10  | i18n            | English / Korean                                                    |
+| 11  | Tests           | Vitest                                                              |
 
-## 3. 기술 스택
+## 3. Tech Stack
 
-| 영역                  | 기술                             |
-| --------------------- | -------------------------------- |
-| UI 프레임워크         | React 19, TypeScript             |
-| 스타일링              | Tailwind CSS                     |
-| UI 컴포넌트           | shadcn/ui (Radix UI 기반)        |
-| 빌드 도구             | Vite                             |
-| Chrome Extension 빌드 | @crxjs/vite-plugin               |
-| OTP 생성              | otplib                           |
-| QR 디코딩             | jsQR                             |
-| 드래그앤드롭          | @dnd-kit/core, @dnd-kit/sortable |
-| 암호화                | Web Crypto API (AES-GCM, PBKDF2) |
-| 테스트                | Vitest                           |
-| Manifest 버전         | Chrome Extension Manifest V3     |
+| Area                    | Technology                       |
+| ----------------------- | -------------------------------- |
+| UI framework            | React 19, TypeScript             |
+| Styling                 | Tailwind CSS v4                  |
+| UI components           | shadcn/ui                        |
+| Build tool              | Vite                             |
+| Chrome extension build  | @crxjs/vite-plugin               |
+| OTP generation          | otplib                           |
+| QR decoding/encoding    | jsQR / qrcode                    |
+| Encryption              | Web Crypto API (AES-GCM, PBKDF2) |
+| Tests                   | Vitest                           |
+| Manifest version        | Chrome Extension Manifest V3     |
 
-## 4. 아키텍처
+## 4. Architecture
 
-### 4.1 레이어 분리 원칙
+### 4.1 Layer Separation Principle
 
-Core 레이어와 UI 레이어를 엄격히 격리한다. 이를 통해 UI 프레임워크를 교체하더라도 비즈니스 로직은 그대로 재사용할 수 있다.
+The Core layer and the UI layer are strictly isolated. This allows the business
+logic to be reused even if the UI framework is replaced.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  UI Layer (React + Tailwind + shadcn/ui)                    │
-│  - 순수 표현 로직, 사용자 인터랙션 처리                        │
-│  - Core에 의존하되, Core는 UI에 의존하지 않음                  │
+│  - Pure presentation logic, user interaction handling        │
+│  - Depends on Core, but Core does not depend on UI           │
 ├─────────────────────────────────────────────────────────────┤
-│  Core Layer (순수 TypeScript, UI 무관)                       │
-│  - crypto, storage, otp, qr, backup                         │
-│  - React, DOM, Tailwind 등 UI 관련 import 금지              │
-│  - 브라우저 API(chrome.*)만 의존                             │
+│  Core Layer (pure TypeScript, UI-agnostic)                  │
+│  - crypto, storage, otp, qr, migration, backup             │
+│  - No React, DOM, Tailwind, or shadcn/ui imports            │
+│  - Depends only on browser APIs (chrome.*)                  │
 ├─────────────────────────────────────────────────────────────┤
 │  Background Layer (Service Worker)                          │
-│  - Core를 사용하여 세션/키 관리                               │
-│  - 메시지 기반 인터페이스 제공                                │
+│  - Uses Core for session/key management                      │
+│  - Exposes a message-based interface                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**규칙:**
+**Rules:**
 
-- `src/core/` 내 파일은 `react`, `react-dom`, CSS, Tailwind, shadcn/ui를 import하지 않는다.
-- `src/core/` 는 순수 TypeScript 함수/클래스만 포함하며, 모든 외부 의존은 인자로 주입받는다 (예: `chrome.storage`는 인터페이스로 추상화 가능).
-- UI 레이어(`src/popup/`)는 Core의 함수를 호출하여 데이터를 가공하고, 결과를 렌더링하는 역할만 담당한다.
-- Background 레이어(`src/background/`)는 Core를 직접 사용하며, Popup과는 메시지로만 통신한다.
+- Files in `src/core/` do not import `react`, `react-dom`, CSS, Tailwind, or shadcn/ui.
+- `src/core/` contains only pure TypeScript functions/classes; external dependencies are injected as arguments where practical.
+- The UI layer (`src/popup/`) calls Core functions to process data and is responsible only for rendering the result.
+- The Background layer (`src/background/`) uses Core directly and communicates with the popup only via messages.
 
-**의존 방향:**
+**Dependency direction:**
 
 ```
 UI (popup) ──► Core ◄── Background
@@ -73,7 +77,7 @@ UI (popup) ──► Core ◄── Background
      └───── Messages ────────┘
 ```
 
-### 4.2 시스템 구조도
+### 4.2 System Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -85,77 +89,80 @@ UI (popup) ──► Core ◄── Background
 │  │                       │                    │  Service     │  │
 │  │  ┌─────────────────┐  │  unlock/lock/     │  Worker      │  │
 │  │  │  Unlock Page    │  │  getStatus        │              │  │
-│  │  ├─────────────────┤  │                    │  - 세션 관리  │  │
-│  │  │  Main Page      │  │                    │  - 키 보관   │  │
-│  │  │  (OTP List)     │  │                    │  (메모리)    │  │
-│  │  ├─────────────────┤  │                    └──────────────┘  │
-│  │  │  Add OTP Page   │  │                                      │
+│  │  ├─────────────────┤  │                    │  - Session   │  │
+│  │  │  Main Page      │  │                    │    mgmt      │  │
+│  │  │  (OTP List)     │  │                    │  - Key held  │  │
+│  │  ├─────────────────┤  │                    │    in memory │  │
+│  │  │  Add OTP Page   │  │                    └──────────────┘  │
 │  │  ├─────────────────┤  │                    ┌──────────────┐  │
 │  │  │  Edit OTP Page  │  │                    │   Storage    │  │
 │  │  ├─────────────────┤  │                    │              │  │
 │  │  │  Settings Page  │  │ ──────────────────►│  chrome.     │  │
 │  │  └─────────────────┘  │   encrypt/decrypt  │  storage.    │  │
-│  └───────────────────────┘                    │  sync        │  │
+│  └───────────────────────┘                    │  local       │  │
 │                                               └──────────────┘  │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │                     Core Modules                           │  │
-│  │  crypto.ts | storage.ts | otp.ts | qr.ts | backup.ts     │  │
+│  │  crypto | storage | otp | qr | migration | backup        │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 데이터 흐름
+### Data Flow
 
-1. **Popup 열림** → Background에 `getStatus` 메시지 → 잠금 상태 확인
-2. **잠금 해제** → 비밀번호 입력 → Background에 `unlock` 메시지 → PBKDF2로 키 유도 → 메모리에 키 보관
-3. **OTP 로드** → Storage에서 암호화된 데이터 읽기 → Background의 키로 복호화 → UI에 표시
-4. **OTP 저장** → 데이터 암호화 → Storage에 저장
-5. **잠금** → Background에 `lock` 메시지 → 메모리에서 키 제거
+1. **Popup opens** → sends `getStatus` to Background → checks lock state
+2. **Unlock** → enter password → sends `unlock` → derive key via PBKDF2 → hold key in memory
+3. **Load OTP** → read encrypted data from Storage → decrypt with the session key → render in UI
+4. **Save OTP** → encrypt data → save to Storage
+5. **Lock** → sends `lock` → remove key from memory
 
-## 5. 디렉토리 구조
+## 5. Directory Structure
 
-모든 파일명은 **kebab-case**를 사용한다.
+All file names use **kebab-case**.
 
 ```
 gw-otp/
 ├─ docs/
-│  └─ design.md
+│  ├─ design.md
+│  └─ privacy-policy.md
 ├─ public/
-│  └─ icons/                    # 확장 프로그램 아이콘 (16, 48, 128px)
+│  └─ icons/                    # Extension icons (16, 48, 128px)
 ├─ src/
 │  ├─ background/
-│  │  └─ index.ts               # Service Worker 진입점
+│  │  └─ index.ts               # Service Worker entry point
 │  ├─ popup/
-│  │  ├─ index.html             # Popup HTML 진입점
-│  │  ├─ main.tsx               # React 마운트
-│  │  ├─ app.tsx                # App 컴포넌트 (라우팅)
+│  │  ├─ index.html             # Popup HTML entry point
+│  │  ├─ main.tsx               # React mount
+│  │  ├─ app.tsx                # App component (routing)
+│  │  ├─ i18n/                  # Internationalization (en/ko)
 │  │  ├─ pages/
-│  │  │  ├─ unlock-page.tsx     # 마스터 비밀번호 입력/설정
-│  │  │  ├─ main-page.tsx       # OTP 리스트 (메인 화면)
-│  │  │  ├─ add-otp-page.tsx    # OTP 등록 (수동/QR/URI)
-│  │  │  ├─ edit-otp-page.tsx   # OTP 편집
-│  │  │  └─ settings-page.tsx   # 설정 (프라이버시, 백업)
+│  │  │  ├─ unlock-page.tsx     # Master password entry/setup
+│  │  │  ├─ main-page.tsx       # OTP list (main screen)
+│  │  │  ├─ add-otp-page.tsx    # Add OTP (manual/QR/URI/capture)
+│  │  │  ├─ edit-otp-page.tsx   # Edit OTP
+│  │  │  └─ settings-page.tsx   # Settings (privacy, backup, tags, password)
 │  │  └─ components/
-│  │     ├─ otp-card.tsx        # 개별 OTP 카드
-│  │     ├─ otp-list.tsx        # 드래그 가능한 OTP 리스트
-│  │     ├─ tag-filter.tsx      # 태그 필터 바
-│  │     ├─ search-bar.tsx      # 검색 입력
-│  │     └─ countdown-bar.tsx   # TOTP 카운트다운 프로그레스
+│  │     ├─ otp-card.tsx        # Individual OTP card
+│  │     ├─ otp-list.tsx        # Reorderable OTP list
+│  │     ├─ tag-filter.tsx      # Tag filter bar
+│  │     ├─ search-bar.tsx      # Search input
+│  │     └─ countdown-bar.tsx   # TOTP countdown progress
 │  ├─ core/
-│  │  ├─ crypto.ts              # 암호화/복호화 유틸리티
-│  │  ├─ storage.ts             # Storage CRUD 레이어
-│  │  ├─ otp.ts                 # TOTP 생성/검증/URI 파싱
-│  │  ├─ qr.ts                  # QR 코드 디코딩
-│  │  └─ backup.ts              # 내보내기/가져오기
+│  │  ├─ crypto.ts              # Encryption/decryption utilities
+│  │  ├─ storage.ts             # Storage CRUD layer
+│  │  ├─ otp.ts                 # TOTP/HOTP generation, verification, URI parsing
+│  │  ├─ qr.ts                  # QR code encoding/decoding
+│  │  ├─ migration.ts           # Google Authenticator migration URI parsing
+│  │  └─ backup.ts              # Export/import
 │  └─ types/
-│     └─ index.ts               # 공유 타입 정의
+│     └─ index.ts               # Shared type definitions
 ├─ tests/
 │  ├─ core/
 │  │  ├─ crypto.test.ts
 │  │  ├─ storage.test.ts
 │  │  ├─ otp.test.ts
-│  │  ├─ qr.test.ts
+│  │  ├─ migration.test.ts
 │  │  └─ backup.test.ts
 │  └─ background/
 │     └─ session.test.ts
@@ -166,31 +173,37 @@ gw-otp/
 └─ package.json
 ```
 
-## 6. 데이터 모델
+## 6. Data Model
 
 ### 6.1 OTPEntry
 
 ```typescript
 interface OTPEntry {
-  /** 고유 식별자 (UUID v4) */
+  /** Unique identifier (UUID v4) */
   id: string;
-  /** 서비스 제공자 이름 (예: Google, GitHub) */
+  /** OTP type (optional, default 'totp') */
+  type?: 'totp' | 'hotp';
+  /** Service provider name (e.g. Google, GitHub) */
   issuer: string;
-  /** 계정 식별자 (예: hello@gmail.com) */
+  /** Account identifier (e.g. hello@gmail.com) */
   label: string;
-  /** 암호화된 secret 키 (Base64 인코딩) */
+  /** Encrypted secret key (Base64-encoded) */
   encryptedSecret: string;
-  /** 할당된 태그 ID 목록 */
+  /** List of assigned tag IDs */
   tags: string[];
-  /** HMAC 알고리즘 */
+  /** HMAC algorithm */
   algorithm: 'SHA1' | 'SHA256' | 'SHA512';
-  /** OTP 자릿수 */
+  /** Number of OTP digits */
   digits: 6 | 8;
-  /** 갱신 주기 (초) */
+  /** Refresh period (seconds, TOTP only) */
   period: number;
-  /** 생성 일시 (ISO 8601) */
+  /** HOTP counter (HOTP only, default 0) */
+  counter?: number;
+  /** Whether pinned to the top (optional, default false) */
+  pinned?: boolean;
+  /** Creation timestamp (ISO 8601) */
   createdAt: string;
-  /** 수정 일시 (ISO 8601) */
+  /** Update timestamp (ISO 8601) */
   updatedAt: string;
 }
 ```
@@ -199,11 +212,11 @@ interface OTPEntry {
 
 ```typescript
 interface Tag {
-  /** 고유 식별자 (UUID v4) */
+  /** Unique identifier (UUID v4) */
   id: string;
-  /** 태그 표시 이름 */
+  /** Tag display name */
   name: string;
-  /** 태그 색상 (hex) */
+  /** Tag color (hex) */
   color: string;
 }
 ```
@@ -212,126 +225,139 @@ interface Tag {
 
 ```typescript
 interface Settings {
-  /** hover 시에만 OTP 코드 표시 */
+  /** Show OTP codes only on hover */
   hideCodesUntilHover: boolean;
-  /** 테마 설정 */
+  /** Theme setting */
   theme: 'light' | 'dark' | 'system';
-  /** 마스터 비밀번호 해시 (검증용) */
+  /** Auto-lock delay (minutes). 0 = immediately on popup close, 'never' = manual only */
+  autoLockMinutes: 0 | 1 | 5 | 10 | 15 | 30 | 'never';
+  /** UI language */
+  language: 'en' | 'ko';
+  /** Ciphertext used to verify the master password (Base64) */
   passwordHash: string;
   /** PBKDF2 salt (Base64) */
   salt: string;
 }
 ```
 
-### 6.4 Storage 구조
+### 6.4 Storage Schema
 
 ```typescript
 interface StorageSchema {
-  /** 설정 */
+  /** Settings */
   settings: Settings;
-  /** OTP 항목 목록 */
+  /** List of OTP entries */
   entries: OTPEntry[];
-  /** 태그 목록 */
+  /** List of tags */
   tags: Tag[];
-  /** OTP 표시 순서 (entry ID 배열) */
+  /** OTP display order (array of entry IDs) */
   order: string[];
 }
 ```
 
-## 7. 컴포넌트 트리 및 페이지 구조
+## 7. Component Tree and Page Structure
 
 ```
 App
-├─ UnlockPage              (잠금 상태일 때)
-│  ├─ 비밀번호 입력 폼
-│  └─ 최초 설정 폼 (비밀번호 생성 + 확인)
+├─ UnlockPage              (when locked)
+│  ├─ Password entry form
+│  └─ First-time setup form (create + confirm password)
 │
-└─ (잠금 해제 후)
-   ├─ MainPage             (기본 화면)
+└─ (after unlock)
+   ├─ MainPage             (default screen)
    │  ├─ Header
-   │  │  ├─ 검색 바 (SearchBar)
-   │  │  ├─ 잠금 버튼
-   │  │  ├─ 설정 버튼
-   │  │  └─ 추가 버튼
-   │  ├─ TagFilter         (태그 필터 바)
-   │  └─ OTPList           (드래그 가능)
+   │  │  ├─ Add button
+   │  │  ├─ Settings button
+   │  │  └─ Lock button
+   │  ├─ SearchBar
+   │  ├─ TagFilter         (tag filter bar)
+   │  └─ OTPList           (reorderable)
    │     └─ OTPCard[]
-   │        ├─ issuer 표시
-   │        ├─ label/id 표시
-   │        ├─ OTP 코드 (hover 마스킹 옵션)
-   │        ├─ CountdownBar
-   │        ├─ 드래그 핸들
-   │        └─ 편집/삭제 액션 버튼
+   │        ├─ issuer display
+   │        ├─ label/id display
+   │        ├─ OTP code (optional hover masking)
+   │        ├─ CountdownBar (TOTP) / counter icon (HOTP)
+   │        ├─ reorder controls + drag handle
+   │        └─ pin / QR / edit / delete actions
    │
-   ├─ AddOTPPage           (OTP 등록)
-   │  ├─ 탭: 수동 입력 | QR 업로드 | 화면 캡처 | URI 붙여넣기
-   │  ├─ 입력 폼 (issuer, label, secret, algorithm, digits, period)
-   │  └─ 태그 선택/생성
+   ├─ AddOTPPage           (add OTP)
+   │  ├─ Tabs: Manual | URI paste | QR upload | Screen capture
+   │  ├─ Input form (issuer, label, secret, algorithm, digits, period)
+   │  └─ Tag selection
    │
-   ├─ EditOTPPage          (OTP 편집)
-   │  ├─ 기존 정보 로드된 편집 폼
-   │  └─ 저장/취소 버튼
+   ├─ EditOTPPage          (edit OTP)
+   │  ├─ Edit form prefilled with existing values
+   │  └─ Save/Cancel buttons
    │
-   └─ SettingsPage         (설정)
-      ├─ 테마: 라이트 / 다크 / 시스템 선택
-      ├─ 프라이버시: hover 마스킹 토글
-      ├─ 내보내기 버튼
-      └─ 가져오기 버튼
+   └─ SettingsPage         (settings)
+      ├─ Theme: light / dark / system
+      ├─ Language: en / ko
+      ├─ Auto-lock delay
+      ├─ Privacy: hover-masking toggle
+      ├─ Tag management (add/delete)
+      ├─ Change password
+      └─ Export / Import
 ```
 
-### 페이지 네비게이션
+### Page Navigation
 
-팝업 내에서는 단순한 상태 기반 라우팅을 사용한다 (React Router 없이 상태로 관리).
+The popup uses simple state-based routing (managed with state, no React Router).
 
 ```typescript
 type Page = 'unlock' | 'main' | 'add' | 'edit' | 'settings';
 ```
 
-## 8. Background ↔ Popup 메시지 프로토콜
+## 8. Background ↔ Popup Message Protocol
 
-`chrome.runtime.sendMessage` / `chrome.runtime.onMessage`를 사용한 메시지 기반 통신.
+Message-based communication using `chrome.runtime.sendMessage` /
+`chrome.runtime.onMessage`.
 
-### 메시지 타입 정의
+### Message Type Definitions
 
 ```typescript
-/** Popup → Background 요청 */
+/** Popup → Background request */
 type MessageRequest =
   | { type: 'unlock'; password: string }
   | { type: 'lock' }
   | { type: 'getStatus' }
-  | { type: 'getKey' };
+  | { type: 'getKey' }
+  | { type: 'resetTimer' }
+  | { type: 'changePassword'; currentPassword: string; newPassword: string };
 
-/** Background → Popup 응답 */
+/** Background → Popup response */
 type MessageResponse =
   | { type: 'unlock'; success: boolean; error?: string }
   | { type: 'lock'; success: boolean }
   | { type: 'getStatus'; isUnlocked: boolean; isInitialized: boolean }
-  | { type: 'getKey'; key: string | null };
+  | { type: 'getKey'; key: string | null }
+  | { type: 'changePassword'; success: boolean; error?: string; newKey?: CryptoKey };
 ```
 
-### 메시지 흐름
+### Message Flow
 
-| 메시지      | 설명                        | 요청                           | 응답                            |
-| ----------- | --------------------------- | ------------------------------ | ------------------------------- |
-| `unlock`    | 마스터 비밀번호로 잠금 해제 | `{ type: 'unlock', password }` | `{ success, error? }`           |
-| `lock`      | 수동 잠금                   | `{ type: 'lock' }`             | `{ success }`                   |
-| `getStatus` | 현재 잠금 상태 확인         | `{ type: 'getStatus' }`        | `{ isUnlocked, isInitialized }` |
-| `getKey`    | 복호화 키 요청              | `{ type: 'getKey' }`           | `{ key }`                       |
+| Message          | Description                          | Request                                 | Response                        |
+| ---------------- | ------------------------------------ | --------------------------------------- | ------------------------------- |
+| `unlock`         | Unlock with the master password      | `{ type: 'unlock', password }`          | `{ success, error? }`           |
+| `lock`           | Manual lock                          | `{ type: 'lock' }`                      | `{ success }`                   |
+| `getStatus`      | Query the current lock state         | `{ type: 'getStatus' }`                 | `{ isUnlocked, isInitialized }` |
+| `getKey`         | Request the decryption key           | `{ type: 'getKey' }`                    | `{ key }`                       |
+| `resetTimer`     | Reset the auto-lock timer            | `{ type: 'resetTimer' }`                | `{ success }`                   |
+| `changePassword` | Change the master password           | `{ type: 'changePassword', ... }`       | `{ success, error?, newKey? }`  |
 
-### 상태 전이
-
-```
-[초기화 안됨] ──(최초 비밀번호 설정)──► [잠금]
-[잠금] ──(unlock 성공)──► [해제]
-[해제] ──(lock / SW 종료)──► [잠금]
-```
-
-## 9. 암호화 흐름
-
-### 9.1 키 유도 (PBKDF2)
+### State Transitions
 
 ```
-마스터 비밀번호 + salt
+[Not initialized] ──(set password for the first time)──► [Locked]
+[Locked] ──(unlock success)──► [Unlocked]
+[Unlocked] ──(lock / auto-lock / SW termination)──► [Locked]
+```
+
+## 9. Encryption Flow
+
+### 9.1 Key Derivation (PBKDF2)
+
+```
+master password + salt
        │
        ▼
   PBKDF2-SHA256
@@ -341,10 +367,10 @@ type MessageResponse =
   256-bit AES-GCM Key
 ```
 
-### 9.2 암호화 (AES-GCM)
+### 9.2 Encryption (AES-GCM)
 
 ```
-평문 (secret) + AES Key + random IV (12 bytes)
+plaintext (secret) + AES Key + random IV (12 bytes)
        │
        ▼
   AES-256-GCM Encrypt
@@ -353,68 +379,64 @@ type MessageResponse =
   Base64(IV + ciphertext + authTag)
 ```
 
-### 9.3 복호화
+### 9.3 Decryption
 
 ```
-Base64 encoded data → IV(12) | ciphertext | authTag(16)
+Base64-encoded data → IV(12) | ciphertext | authTag(16)
        │
        ▼
   AES-256-GCM Decrypt (with Key + IV)
        │
        ▼
-  평문 (secret)
+  plaintext (secret)
 ```
 
-### 9.4 비밀번호 검증
+### 9.4 Password Verification
 
-최초 비밀번호 설정 시:
+When setting the password for the first time:
 
-1. random salt 생성 (16 bytes)
-2. PBKDF2로 키 유도
-3. 고정 검증 문자열("gw-otp-verify")을 암호화하여 `passwordHash`로 저장
-4. salt를 Settings에 저장
+1. Generate a random salt (16 bytes)
+2. Derive a key via PBKDF2
+3. Encrypt a fixed verification string ("gw-otp-verify") and store it as `passwordHash`
+4. Store the salt in Settings
 
-잠금 해제 시:
+When unlocking:
 
-1. 입력된 비밀번호 + 저장된 salt로 키 유도
-2. `passwordHash`를 복호화 시도
-3. 결과가 "gw-otp-verify"이면 비밀번호 정확 → 키를 Background 메모리에 보관
+1. Derive a key from the entered password + stored salt
+2. Attempt to decrypt `passwordHash`
+3. If the result is "gw-otp-verify", the password is correct → hold the key in Background memory
 
-## 10. Storage 분할 전략
+## 10. Storage Strategy
 
-### 제한사항
-
-- `chrome.storage.sync`: 항목당 최대 8,192 bytes, 전체 최대 102,400 bytes
-- 최대 512개 항목(key-value pairs)
-
-### 분할 전략
-
-데이터를 논리적 키로 분할하여 저장한다:
+Data is stored in `chrome.storage.local` under logical keys. `chrome.storage.local`
+has a generous quota (~5 MB by default), so a single quota is not a practical
+concern for typical usage. Entries are still split into chunks to bound the size
+of individual stored values and to preserve a stable data layout.
 
 ```
 storage keys:
-  "settings"    → Settings 객체
-  "tags"        → Tag[] 배열
-  "order"       → string[] (ID 순서 배열)
-  "entries_0"   → OTPEntry[] (chunk 0, 최대 ~7KB)
+  "settings"    → Settings object
+  "tags"        → Tag[] array
+  "order"       → string[] (ID order array)
+  "entries_0"   → OTPEntry[] (chunk 0, up to ~7KB)
   "entries_1"   → OTPEntry[] (chunk 1)
   ...
   "entries_N"   → OTPEntry[] (chunk N)
 ```
 
-### 청크 분할 로직
+### Chunk-splitting logic
 
 ```typescript
-const CHUNK_SIZE = 7000; // bytes (8192 미만으로 여유 확보)
+const CHUNK_MAX_BYTES = 7000; // bytes
 
-function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
+function splitEntriesIntoChunks(entries: OTPEntry[]): OTPEntry[][] {
   const chunks: OTPEntry[][] = [];
   let currentChunk: OTPEntry[] = [];
   let currentSize = 0;
 
   for (const entry of entries) {
-    const entrySize = JSON.stringify(entry).length * 2; // UTF-16 추정
-    if (currentSize + entrySize > CHUNK_SIZE && currentChunk.length > 0) {
+    const entrySize = JSON.stringify(entry).length * 2; // UTF-16 estimate
+    if (currentSize + entrySize > CHUNK_MAX_BYTES && currentChunk.length > 0) {
       chunks.push(currentChunk);
       currentChunk = [];
       currentSize = 0;
@@ -431,138 +453,100 @@ function splitEntries(entries: OTPEntry[]): OTPEntry[][] {
 }
 ```
 
-### 용량 추정
+## 11. Security Model
 
-- 평균 OTPEntry 크기: ~300 bytes (암호화된 secret 포함)
-- 청크당 약 23개 항목
-- 최대 약 300+ OTP 항목 저장 가능 (충분)
+### 11.1 Session Lifecycle
 
-## 11. 보안 모델
+| State           | Condition                               | Key location         |
+| --------------- | --------------------------------------- | -------------------- |
+| Not initialized | First run, no password set              | None                 |
+| Locked          | Password set, not authenticated         | None                 |
+| Unlocked        | Password verified                       | Background SW memory |
 
-### 11.1 세션 생명주기
+The session key may also be temporarily persisted in `chrome.storage.session`
+(cleared when the browser closes) to survive Service Worker restarts, unless
+`autoLockMinutes` is 0.
 
-| 상태        | 조건                       | 키 위치              |
-| ----------- | -------------------------- | -------------------- |
-| 초기화 안됨 | 최초 실행, 비밀번호 미설정 | 없음                 |
-| 잠금        | 비밀번호 설정됨, 미인증    | 없음                 |
-| 해제        | 비밀번호 검증 완료         | Background SW 메모리 |
+### 11.2 Auto-lock
 
-### 11.2 자동 잠금
+- **Service Worker termination**: when Chrome terminates an idle Service Worker, the in-memory key is discarded → locked.
+- **Browser shutdown**: the key is discarded the same way.
+- **Timed auto-lock**: a `chrome.alarms` alarm locks the session after the configured delay.
 
-- **Service Worker 종료**: Chrome이 idle Service Worker를 종료하면 메모리의 키가 자동 소멸 → 잠금 상태
-- **브라우저 종료**: 동일하게 키 소멸
+### 11.3 Manual Lock
 
-### 11.3 수동 잠금
+- Click the lock button in the popup header → `lock` message → Background removes the key.
+- Immediately switches to the Unlock screen.
 
-- 팝업 헤더의 잠금 버튼 클릭 → `lock` 메시지 → Background에서 키 제거
-- 즉시 Unlock 화면으로 전환
+### 11.4 Security Considerations
 
-### 11.4 보안 고려사항
+- Secrets are **always stored encrypted** in storage.
+- The decryption key exists **only in memory** (never persisted to disk in plaintext).
+- PBKDF2 with 600,000 iterations for brute-force resistance.
+- A new random IV is used for each encryption (same plaintext yields different ciphertext).
+- Integrity is verified via the `authTag` (tamper detection).
+- All data is stored locally and is never synced or transmitted off-device.
 
-- Secret은 **항상 암호화된 상태**로 storage에 저장
-- 복호화 키는 **메모리에만** 존재 (디스크에 저장하지 않음)
-- PBKDF2 iterations 600,000회로 brute-force 방어
-- 각 암호화 시 새로운 random IV 사용 (동일 평문이라도 다른 암호문)
-- `authTag`로 무결성 검증 (변조 탐지)
+## 12. OTP Card UI
 
-## 12. OTP 카드 UI 명세
-
-### 카드 레이아웃
+### Card Layout
 
 ```
 ┌─────────────────────────────────────────────────┐
 │ ⠿  │  Google                        ✏️  🗑️  │
 │    │  hello@gmail.com                         │
 │    │                                          │
-│    │  1 2 3  4 5 6        (또는 ••••••)       │
-│    │  ████████████░░░░░  15s                  │
+│    │  1 2 3  4 5 6        (or ••••••)         │
+│    │  ◐ 15                                    │
 └─────────────────────────────────────────────────┘
   │       │         │              │
-  │       │         │              └─ 카운트다운 바 + 남은 초
-  │       │         └─ OTP 코드 (클릭 시 복사)
+  │       │         │              └─ countdown + remaining seconds
+  │       │         └─ OTP code (click to copy)
   │       └─ issuer + label
-  └─ 드래그 핸들
+  └─ drag handle
 ```
 
-### 인터랙션
+### Interactions
 
-| 액션                         | 동작                            |
-| ---------------------------- | ------------------------------- |
-| OTP 코드 클릭                | 클립보드 복사 + 토스트 "복사됨" |
-| 드래그 핸들 잡고 드래그      | 순서 변경                       |
-| 편집 아이콘 (✏️) 클릭        | EditOTPPage로 이동              |
-| 삭제 아이콘 (🗑️) 클릭        | 확인 다이얼로그 → 삭제          |
-| 마우스 hover (프라이버시 ON) | `••••••` → 실제 코드 표시       |
+| Action                          | Behavior                          |
+| ------------------------------- | --------------------------------- |
+| Click OTP code                  | Copy to clipboard + "copied" state |
+| Grab drag handle and drag       | Reorder                           |
+| Click edit icon (✏️)            | Navigate to EditOTPPage           |
+| Click delete icon (🗑️)          | Confirmation dialog → delete      |
+| Mouse hover (privacy ON)        | `••••••` → show the real code     |
+| HOTP: next-code button          | Increment the counter and refresh |
 
-### OTP 코드 갱신
+### OTP Code Refresh
 
-- 매 초마다 남은 시간 계산: `period - (currentTime % period)`
-- 남은 시간이 0이 되면 새 코드 생성
-- CountdownBar는 `(remainingSeconds / period) * 100`%로 너비 표시
+- TOTP: computes remaining time each second: `period - (currentTime % period)`; a new code is generated when it reaches 0.
+- HOTP: refreshed only when the counter changes.
+- CountdownBar shows the remaining ratio as an SVG circular progress indicator.
 
-## 13. 테마 시스템
+## 13. Theme System
 
-### 테마 옵션
+### Theme Options
 
-| 옵션     | 동작                                              |
+| Option   | Behavior                                          |
 | -------- | ------------------------------------------------- |
-| `light`  | 항상 라이트 모드                                  |
-| `dark`   | 항상 다크 모드                                    |
-| `system` | OS 설정에 따라 자동 전환 (`prefers-color-scheme`) |
+| `light`  | Always light mode                                 |
+| `dark`   | Always dark mode                                  |
+| `system` | Follow the OS setting (`prefers-color-scheme`)    |
 
-### 구현 방식
+### Implementation
 
-Tailwind CSS의 `darkMode: 'class'` 전략을 사용한다.
+Uses Tailwind CSS's class-based dark mode strategy. The App loads the saved
+theme, applies the `dark` class on the `<html>` element as needed, and listens
+for `prefers-color-scheme` changes when the theme is `system`. shadcn/ui's
+CSS-variable-based theming is defined in `globals.css`. The selection is applied
+immediately and saved to `chrome.storage.local`.
 
-```typescript
-// src/popup/hooks/use-theme.ts
-type Theme = 'light' | 'dark' | 'system';
+## 14. QR Recognition Flow
 
-function useTheme() {
-  // 1. Settings에서 저장된 테마 로드
-  // 2. 'system'이면 matchMedia('(prefers-color-scheme: dark)') 감지
-  // 3. <html> 요소에 'dark' class 추가/제거
-}
-```
-
-### CSS 변수 (shadcn/ui 기반)
-
-shadcn/ui는 CSS 변수 기반 테마를 사용한다. `globals.css`에 라이트/다크 변수를 정의:
-
-```css
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  /* ... */
-}
-
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --primary: 210 40% 98%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  /* ... */
-}
-```
-
-### Settings 페이지 UI
-
-라디오 버튼 또는 세그먼트 컨트롤로 3가지 옵션 선택:
-
-- ☀️ 라이트
-- 🌙 다크
-- 💻 시스템
-
-선택 즉시 적용 + `chrome.storage.sync`에 저장.
-
-## 14. QR 인식 흐름
-
-### 13.1 이미지 업로드
+### 14.1 Image Upload
 
 ```
-사용자가 파일 선택 (input[type=file])
+User selects a file (input[type=file])
        │
        ▼
   FileReader → DataURL
@@ -577,16 +561,16 @@ shadcn/ui는 CSS 변수 기반 테마를 사용한다. `globals.css`에 라이�
   jsQR(imageData.data, width, height)
        │
        ▼
-  QR 데이터 (otpauth:// URI)
+  QR data (otpauth:// or otpauth-migration:// URI)
        │
        ▼
-  parseOTPAuthURI() → OTPEntry 필드 채우기
+  parseOTPAuthURI() / parseMigrationURI() → fill entry fields
 ```
 
-### 13.2 화면 캡처
+### 14.2 Screen Capture
 
 ```
-사용자가 "화면 캡처" 버튼 클릭
+User clicks the "Screen capture" button
        │
        ▼
   chrome.tabs.captureVisibleTab() → DataURL
@@ -595,118 +579,118 @@ shadcn/ui는 CSS 변수 기반 테마를 사용한다. `globals.css`에 라이�
   Image → Canvas → getImageData()
        │
        ▼
-  jsQR() → QR 데이터 탐색
+  jsQR() → search for a QR code
        │
-       ├─ QR 발견 → URI 파싱 → 등록 폼에 채우기
-       └─ QR 미발견 → 에러 메시지 "QR 코드를 찾을 수 없습니다"
+       ├─ QR found → parse URI → fill the form
+       └─ QR not found → error message "No QR code could be found."
 ```
 
-### 필요 권한
+### Required Permissions
 
-- `activeTab`: 현재 탭 캡처를 위해 필요
-- 사용자가 팝업에서 버튼을 클릭하는 시점에만 권한 활성화
+- `activeTab`: required to capture the current tab.
+- The permission is only active at the moment the user clicks the button in the popup.
 
-## 15. 내보내기/가져오기 포맷
+## 15. Export/Import Format
 
-### 파일 확장자
+### File Extension
 
 `.gw-otp`
 
-### 파일 구조
+### File Structure
 
 ```typescript
 interface BackupFile {
-  /** 파일 포맷 버전 */
+  /** File format version */
   version: 1;
-  /** 생성 일시 (ISO 8601) */
+  /** Creation timestamp (ISO 8601) */
   exportedAt: string;
-  /** PBKDF2 salt (Base64, 백업 전용) */
+  /** PBKDF2 salt (Base64, backup-specific) */
   salt: string;
-  /** 암호화된 데이터 (Base64) */
+  /** Encrypted data (Base64) */
   encryptedData: string;
 }
 ```
 
-### 내보내기 흐름
+### Export Flow
 
 ```
-1. 사용자에게 내보내기 비밀번호 입력 받기 (현재 마스터 비밀번호 또는 별도)
-2. 모든 OTP entries의 secret을 복호화
-3. 평문 상태의 전체 데이터를 JSON 직렬화
+1. Prompt the user for an export password
+2. Decrypt the secret of every OTP entry
+3. Serialize the full data as JSON in plaintext
    { entries: OTPEntry[], tags: Tag[], order: string[] }
-4. 내보내기 비밀번호로 새 salt 생성 + PBKDF2 키 유도
-5. AES-GCM으로 암호화
-6. BackupFile 구조로 JSON 생성
-7. Blob → URL.createObjectURL → 다운로드
+4. Derive a new salt + PBKDF2 key from the export password
+5. Encrypt with AES-GCM
+6. Build a BackupFile JSON structure
+7. Blob → URL.createObjectURL → download
 ```
 
-### 가져오기 흐름
+### Import Flow
 
 ```
-1. 파일 업로드 (input[type=file], accept=".gw-otp")
-2. JSON 파싱 → version 확인
-3. 내보내기 시 사용한 비밀번호 입력 받기
-4. salt + 비밀번호로 키 유도
-5. encryptedData 복호화
-6. 복호화된 entries/tags/order를 현재 storage에 병합
-   - 동일 ID가 있으면 사용자에게 덮어쓰기 확인
-   - 새 항목은 추가
-7. 현재 마스터 비밀번호로 재암호화하여 저장
+1. Upload a file (input[type=file], accept=".gw-otp")
+2. Parse JSON → check the version
+3. Prompt for the password used at export time
+4. Derive the key from the salt + password
+5. Decrypt encryptedData
+6. Merge or replace the decrypted entries/tags/order into current storage
+   - merge: skip entries with a duplicate ID, append new ones
+   - replace: overwrite everything
+7. Re-encrypt with the current master password and save
 ```
 
-## 16. 테스트 전략
+## 16. Testing Strategy
 
-### 테스트 프레임워크
+### Test Framework
 
-- **Vitest**: 단위 테스트 및 통합 테스트
-- **환경**: `jsdom` (DOM API 필요 시)
-- **Web Crypto**: Node.js `crypto` 모듈로 polyfill
+- **Vitest**: unit and integration tests
+- **Environment**: `jsdom` (when DOM APIs are needed)
+- **Web Crypto**: provided by the runtime; `chrome.*` APIs are mocked in `tests/setup.ts`
 
-### 테스트 범위
+### Test Coverage
 
-| 모듈    | 테스트 파일                        | 주요 테스트 케이스                                      |
-| ------- | ---------------------------------- | ------------------------------------------------------- |
-| crypto  | `tests/core/crypto.test.ts`        | encrypt/decrypt 왕복, 잘못된 비밀번호 실패, salt 고유성 |
-| storage | `tests/core/storage.test.ts`       | CRUD 동작, 순서 관리, 청크 분할, 삭제 정합성            |
-| otp     | `tests/core/otp.test.ts`           | TOTP 생성 검증, URI 파싱, 남은 시간 계산                |
-| qr      | `tests/core/qr.test.ts`            | QR 이미지 데이터 디코딩                                 |
-| backup  | `tests/core/backup.test.ts`        | 내보내기→가져오기 왕복, 버전 검증                       |
-| session | `tests/background/session.test.ts` | 잠금/해제 상태 전환, 키 보관/삭제                       |
+| Module    | Test file                          | Key test cases                                          |
+| --------- | ---------------------------------- | ------------------------------------------------------- |
+| crypto    | `tests/core/crypto.test.ts`        | encrypt/decrypt round-trip, wrong-password failure, salt uniqueness |
+| storage   | `tests/core/storage.test.ts`       | CRUD, order management, chunk splitting, delete consistency |
+| otp       | `tests/core/otp.test.ts`           | TOTP/HOTP generation & verification, URI parsing, remaining time |
+| migration | `tests/core/migration.test.ts`     | Google Authenticator migration URI parsing              |
+| backup    | `tests/core/backup.test.ts`        | export→import round-trip, version validation            |
+| session   | `tests/background/session.test.ts` | lock/unlock transitions, key hold/removal               |
 
-### Mock 전략
+### Mock Strategy
 
-- `chrome.storage.sync`: in-memory 객체로 mock
-- `chrome.runtime.sendMessage`: 직접 핸들러 호출로 mock
-- `chrome.tabs.captureVisibleTab`: mock DataURL 반환
+- `chrome.storage.local`: mocked with an in-memory object
+- `chrome.runtime.sendMessage`: mocked by calling the handler directly
+- `chrome.tabs.captureVisibleTab`: mocked to return a DataURL
 
-### 실행
+### Running
 
 ```bash
-# 전체 테스트
+# All tests
 pnpm test
 
-# 특정 파일
+# A specific file
 pnpm test tests/core/crypto.test.ts
 
-# watch 모드 (개발 중)
-pnpm test --watch
+# Watch mode (during development)
+pnpm test:watch
 ```
 
-## 17. Manifest 설정
+## 17. Manifest Configuration
 
 ```json
 {
   "manifest_version": 3,
   "name": "GW-OTP",
   "version": "1.0.0",
-  "description": "OTP 인증 코드 관리 크롬 확장 프로그램",
-  "permissions": ["storage", "activeTab", "clipboardWrite"],
+  "description": "Manage TOTP/HOTP authentication codes locally, encrypted with your master password.",
+  "permissions": ["storage", "activeTab", "alarms"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_icon": {
-      "16": "public/icons/icon-16.png",
-      "48": "public/icons/icon-48.png",
-      "128": "public/icons/icon-128.png"
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
     }
   },
   "background": {
@@ -714,29 +698,16 @@ pnpm test --watch
     "type": "module"
   },
   "icons": {
-    "16": "public/icons/icon-16.png",
-    "48": "public/icons/icon-48.png",
-    "128": "public/icons/icon-128.png"
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   }
 }
 ```
 
-## 18. 구현 순서
-
-1. 프로젝트 구조 전환 (Vite + @crxjs/vite-plugin + Vitest)
-2. 암호화 모듈 (`crypto.ts`)
-3. Storage 레이어 (`storage.ts` + `types/index.ts`)
-4. OTP 생성 모듈 (`otp.ts`)
-5. Background Service Worker (세션 관리)
-6. Unlock Page UI
-7. OTP 리스트 UI (Main Page + OTP Card)
-8. OTP 편집 & 삭제
-9. OTP 카드 순서 조정 (드래그앤드롭)
-10. 태그 그룹핑 & 검색/필터
-11. OTP 등록 — 수동 입력 & URI
-12. OTP 등록 — QR 이미지 업로드
-13. OTP 등록 — 화면 캡처
-14. 프라이버시 옵션 (hover 마스킹)
-15. 수동 잠금 기능
-16. 내보내기/가져오기
-17. 최종 통합 및 폴리싱
+> Notes:
+> - Icons live in `public/icons/` in the source tree; because Vite copies the
+>   `public/` directory to the build root, they are referenced at runtime as
+>   `icons/icon-*.png`.
+> - `clipboardWrite` is not required because copying uses the async
+>   `navigator.clipboard` API from the popup context.

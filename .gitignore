@@ -28,3 +28,9 @@ coverage
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Store packaging output
+gw-otp-*.zip
+
+# Store screenshots (submission assets, captured manually)
+docs/store-listing/screenshots
