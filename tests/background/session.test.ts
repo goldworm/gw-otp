@@ -17,8 +17,8 @@ function sendMessage(request: MessageRequest): Promise<MessageResponse> {
 
 describe('background session management', () => {
   beforeEach(async () => {
-    // storage 초기화 + lock 상태로 리셋
-    await chrome.storage.sync.clear();
+    // Reset storage + reset to locked state
+    await chrome.storage.local.clear();
     await sendMessage({ type: 'lock' });
   });
 
@@ -35,7 +35,7 @@ describe('background session management', () => {
     it('should return initialized after first unlock', async () => {
       await sendMessage({ type: 'unlock', password: 'my-password' });
 
-      // lock 후에도 initialized는 true
+      // initialized stays true even after lock
       await sendMessage({ type: 'lock' });
 
       const response = await sendMessage({ type: 'getStatus' });
@@ -57,10 +57,10 @@ describe('background session management', () => {
       expect(getSessionKey()).not.toBeNull();
     });
 
-    it('should store settings in chrome.storage.sync', async () => {
+    it('should store settings in chrome.storage.local', async () => {
       await sendMessage({ type: 'unlock', password: 'test-pass' });
 
-      const result = await chrome.storage.sync.get('settings');
+      const result = await chrome.storage.local.get('settings');
       const settings = result.settings;
       expect(settings).toBeDefined();
       expect(settings.salt).toBeDefined();
@@ -72,7 +72,7 @@ describe('background session management', () => {
 
   describe('unlock - subsequent times', () => {
     beforeEach(async () => {
-      // 초기화 (비밀번호 설정)
+      // Initialize (set the password)
       await sendMessage({ type: 'unlock', password: 'correct-password' });
       await sendMessage({ type: 'lock' });
     });
@@ -132,22 +132,22 @@ describe('background session management', () => {
 
       const response = await sendMessage({ type: 'getKey' });
       expect(response.type).toBe('getKey');
-      // 실제 키가 base64 문자열로 반환됨
+      // The actual key is returned as a base64 string
       const key = (response as { key: string | null }).key;
       expect(key).toBeTruthy();
       expect(typeof key).toBe('string');
-      // AES-256 raw key = 32 bytes → base64 44자 (padding 포함)
+      // AES-256 raw key = 32 bytes → 44 base64 chars (including padding)
       expect((key as string).length).toBeGreaterThan(0);
     });
   });
 
   describe('session lifecycle', () => {
     it('should handle full lifecycle: init → lock → unlock → lock', async () => {
-      // 1. 초기 상태
+      // 1. Initial state
       let status = await sendMessage({ type: 'getStatus' });
       expect(status).toMatchObject({ isUnlocked: false, isInitialized: false });
 
-      // 2. 초기화 (최초 비밀번호 설정)
+      // 2. Initialize (set the password for the first time)
       const unlockResult = await sendMessage({
         type: 'unlock',
         password: 'lifecycle-pass',
@@ -157,12 +157,12 @@ describe('background session management', () => {
       status = await sendMessage({ type: 'getStatus' });
       expect(status).toMatchObject({ isUnlocked: true, isInitialized: true });
 
-      // 3. 수동 잠금
+      // 3. Manual lock
       await sendMessage({ type: 'lock' });
       status = await sendMessage({ type: 'getStatus' });
       expect(status).toMatchObject({ isUnlocked: false, isInitialized: true });
 
-      // 4. 재잠금 해제
+      // 4. Unlock again
       const reUnlock = await sendMessage({
         type: 'unlock',
         password: 'lifecycle-pass',
@@ -172,7 +172,7 @@ describe('background session management', () => {
       status = await sendMessage({ type: 'getStatus' });
       expect(status).toMatchObject({ isUnlocked: true, isInitialized: true });
 
-      // 5. 최종 잠금
+      // 5. Final lock
       await sendMessage({ type: 'lock' });
       expect(getSessionKey()).toBeNull();
     });

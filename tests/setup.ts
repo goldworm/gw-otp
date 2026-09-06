@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 // Mock chrome APIs
 const storageMock: Record<string, unknown> = {};
 
-const chromeStorageSyncMock = {
+const chromeStorageLocalMock = {
   get: vi.fn((keys: string | string[] | null) => {
     if (keys === null) return Promise.resolve({ ...storageMock });
     if (typeof keys === 'string') {
@@ -74,7 +74,7 @@ const chromeStorageSessionMock = {
 Object.defineProperty(globalThis, 'chrome', {
   value: {
     storage: {
-      sync: chromeStorageSyncMock,
+      local: chromeStorageLocalMock,
       session: chromeStorageSessionMock,
     },
     runtime: chromeRuntimeMock,

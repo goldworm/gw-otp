@@ -54,7 +54,7 @@ function createMockTag(overrides: Partial<Tag> = {}): Tag {
 
 describe('storage module', () => {
   beforeEach(async () => {
-    await chrome.storage.sync.clear();
+    await chrome.storage.local.clear();
   });
 
   describe('splitEntriesIntoChunks', () => {
@@ -71,7 +71,7 @@ describe('storage module', () => {
     });
 
     it('should split large entries into multiple chunks', () => {
-      // 큰 encryptedSecret으로 항목 크기를 늘림
+      // Grow the entry size with a large encryptedSecret
       const largeSecret = 'x'.repeat(2000);
       const entries = Array.from({ length: 10 }, () =>
         createMockEntry({ encryptedSecret: largeSecret }),
@@ -79,7 +79,7 @@ describe('storage module', () => {
       const chunks = splitEntriesIntoChunks(entries);
       expect(chunks.length).toBeGreaterThan(1);
 
-      // 모든 항목이 포함되어야 함
+      // All entries must be included
       const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
       expect(total).toBe(10);
     });
@@ -278,7 +278,7 @@ describe('storage module', () => {
       const updated = await getEntry(entry.id);
       expect(updated!.issuer).toBe('NewIssuer');
       expect(updated!.label).toBe('new@email.com');
-      // updatedAt이 갱신되었는지 확인 (원래 값과 달라야 함)
+      // Verify updatedAt was refreshed (must differ from the original value)
       expect(updated!.updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
     });
 
