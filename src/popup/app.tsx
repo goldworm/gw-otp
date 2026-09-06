@@ -17,7 +17,7 @@ export function App() {
   const [language, setLanguage] = useState<Language>('en');
   const [loading, setLoading] = useState(true);
 
-  // 테마 적용
+  // Apply theme
   const applyTheme = useCallback((theme: Theme) => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -37,7 +37,7 @@ export function App() {
     }
   }, []);
 
-  // 세션 상태 확인 + 테마 로드
+  // Check session status + load theme
   const checkStatus = useCallback(async () => {
     try {
       const response: MessageResponse = await chrome.runtime.sendMessage({
@@ -46,7 +46,7 @@ export function App() {
       if (response.type === 'getStatus') {
         setIsInitialized(response.isInitialized);
         if (response.isUnlocked) {
-          // background에서 세션 키를 받아 복원 (팝업 재실행 시 재입력 방지)
+          // Receive and restore the session key from the background (avoid re-entry when the popup reopens)
           const keyResponse: MessageResponse = await chrome.runtime.sendMessage({
             type: 'getKey',
           });
@@ -54,10 +54,10 @@ export function App() {
             const key = await importKeyFromBase64(keyResponse.key);
             setSessionKey(key);
             setPage('main');
-            // 팝업 열릴 때 자동 잠금 타이머 리셋
+            // Reset the auto-lock timer when the popup opens
             chrome.runtime.sendMessage({ type: 'resetTimer' });
           } else {
-            // 키 복원 실패 시 잠금 화면
+            // Show the lock screen if key restoration fails
             setPage('unlock');
           }
         } else {
@@ -65,7 +65,7 @@ export function App() {
         }
       }
 
-      // 테마 및 언어 로드/적용
+      // Load and apply theme and language
       const settings = await loadSettings();
       if (settings) {
         applyTheme(settings.theme);
@@ -84,7 +84,7 @@ export function App() {
     checkStatus();
   }, [checkStatus]);
 
-  // 팝업 연결 port 유지 (닫히면 background가 감지하여 즉시 잠금 처리)
+  // Keep the popup connection port open (on close, the background detects it and locks immediately)
   useEffect(() => {
     const port = chrome.runtime.connect({ name: 'gw-otp-popup' });
     return () => {
@@ -92,7 +92,7 @@ export function App() {
     };
   }, []);
 
-  // 시스템 테마 변경 감지
+  // Detect system theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
@@ -106,7 +106,7 @@ export function App() {
     return () => mediaQuery.removeEventListener('change', handler);
   }, [applyTheme]);
 
-  // 잠금 해제 핸들러
+  // Unlock handler
   async function handleUnlock(
     password: string,
   ): Promise<{ success: boolean; error?: string }> {
@@ -118,7 +118,7 @@ export function App() {
       if (response.type === 'unlock') {
         if (response.success) {
           setIsInitialized(true);
-          // 로컬에서 키 유도 (popup에서 직접 암/복호화를 위해)
+          // Derive the key locally (for encryption/decryption directly in the popup)
           const settings = await loadSettings();
           if (settings) {
             const salt = base64ToBuffer(settings.salt);
@@ -135,34 +135,34 @@ export function App() {
       }
       return { success: false, error: 'Unexpected response' };
     } catch {
-      return { success: false, error: '확장 프로그램 연결 오류' };
+      return { success: false, error: 'Extension connection error' };
     }
   }
 
-  // 잠금 핸들러
+  // Lock handler
   async function handleLock() {
     await chrome.runtime.sendMessage({ type: 'lock' });
     setSessionKey(null);
     setPage('unlock');
   }
 
-  // 페이지 네비게이션
+  // Page navigation
   function handleNavigate(target: 'add' | 'edit' | 'settings') {
     setPage(target);
   }
 
-  // 편집 진입
+  // Enter edit mode
   function handleEditEntry(id: string) {
     setEditEntryId(id);
     setPage('edit');
   }
 
-  // 테마 변경 핸들러
+  // Theme change handler
   function handleThemeChange(theme: Theme) {
     applyTheme(theme);
   }
 
-  // 언어 변경 핸들러 (I18nProvider → settings 저장)
+  // Language change handler (I18nProvider → persist to settings)
   const handleLanguageChange = useCallback(async (lang: Language) => {
     setLanguage(lang);
     const settings = await loadSettings();
@@ -171,12 +171,12 @@ export function App() {
     }
   }, []);
 
-  // 비밀번호 변경 후 Popup sessionKey 갱신 핸들러
+  // Handler to refresh the popup sessionKey after a password change
   function handlePasswordChanged(newKey: CryptoKey) {
     setSessionKey(newKey);
   }
 
-  // 로딩 중
+  // Loading
   if (loading) {
     return (
       <div className="flex min-h-[500px] w-[380px] items-center justify-center bg-background">
@@ -185,7 +185,7 @@ export function App() {
     );
   }
 
-  // 페이지 라우팅
+  // Page routing
   function renderPage() {
     switch (page) {
       case 'unlock':

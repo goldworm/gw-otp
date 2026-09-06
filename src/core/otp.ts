@@ -1,12 +1,12 @@
 /**
- * OTP 생성 모듈
+ * OTP generation module
  *
- * - TOTP 코드 생성 (otplib 사용)
- * - 남은 시간 계산
- * - otpauth:// URI 파싱
- * - otpauth:// URI 생성
+ * - Generate TOTP codes (using otplib)
+ * - Compute remaining time
+ * - Parse otpauth:// URIs
+ * - Build otpauth:// URIs
  *
- * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
+ * This module is pure TypeScript and has no UI dependencies.
  */
 
 import {
@@ -20,7 +20,7 @@ import type { Algorithm, Digits, OTPType, ParsedOTPAuthURI } from '@/types';
 
 // ─── TOTP Generation ─────────────────────────────────────────────────────────
 
-/** otplib에서 사용하는 알고리즘 이름 매핑 */
+/** Mapping to the algorithm names used by otplib */
 const ALGORITHM_MAP: Record<Algorithm, 'sha1' | 'sha256' | 'sha512'> = {
   SHA1: 'sha1',
   SHA256: 'sha256',
@@ -28,13 +28,13 @@ const ALGORITHM_MAP: Record<Algorithm, 'sha1' | 'sha256' | 'sha512'> = {
 };
 
 /**
- * TOTP 코드를 생성한다.
+ * Generate a TOTP code.
  *
- * @param secret - Base32 인코딩된 secret
- * @param algorithm - 해시 알고리즘 (기본: SHA1)
- * @param digits - OTP 자릿수 (기본: 6)
- * @param period - 갱신 주기 초 (기본: 30)
- * @returns 6자리 또는 8자리 OTP 문자열
+ * @param secret - the Base32-encoded secret
+ * @param algorithm - the hash algorithm (default: SHA1)
+ * @param digits - number of OTP digits (default: 6)
+ * @param period - refresh period in seconds (default: 30)
+ * @returns a 6- or 8-digit OTP string
  */
 export async function generateTOTP(
   secret: string,
@@ -54,13 +54,13 @@ export async function generateTOTP(
 }
 
 /**
- * HOTP 코드를 생성한다 (카운터 기반).
+ * Generate an HOTP code (counter-based).
  *
- * @param secret - Base32 인코딩된 secret
- * @param counter - HOTP 카운터 값
- * @param algorithm - 해시 알고리즘 (기본: SHA1)
- * @param digits - OTP 자릿수 (기본: 6)
- * @returns 6자리 또는 8자리 OTP 문자열
+ * @param secret - the Base32-encoded secret
+ * @param counter - the HOTP counter value
+ * @param algorithm - the hash algorithm (default: SHA1)
+ * @param digits - number of OTP digits (default: 6)
+ * @returns a 6- or 8-digit OTP string
  */
 export async function generateHOTP(
   secret: string,
@@ -81,14 +81,14 @@ export async function generateHOTP(
 }
 
 /**
- * TOTP 코드를 검증한다.
+ * Verify a TOTP code.
  *
- * @param token - 검증할 OTP 코드
- * @param secret - Base32 인코딩된 secret
- * @param algorithm - 해시 알고리즘
- * @param digits - OTP 자릿수
- * @param period - 갱신 주기 초
- * @returns 유효하면 true
+ * @param token - the OTP code to verify
+ * @param secret - the Base32-encoded secret
+ * @param algorithm - the hash algorithm
+ * @param digits - number of OTP digits
+ * @param period - refresh period in seconds
+ * @returns true if valid
  */
 export async function verifyTOTP(
   token: string,
@@ -111,10 +111,10 @@ export async function verifyTOTP(
 // ─── Time Utilities ──────────────────────────────────────────────────────────
 
 /**
- * 현재 TOTP 주기에서 남은 시간(초)을 계산한다.
+ * Compute the remaining time (seconds) in the current TOTP period.
  *
- * @param period - 갱신 주기 (초, 기본: 30)
- * @returns 남은 초 수 (1 ~ period)
+ * @param period - the refresh period (seconds, default: 30)
+ * @returns the number of seconds remaining (1 ~ period)
  */
 export function getRemainingSeconds(period: number = 30): number {
   const now = Math.floor(Date.now() / 1000);
@@ -122,11 +122,11 @@ export function getRemainingSeconds(period: number = 30): number {
 }
 
 /**
- * 남은 시간을 비율(0~1)로 반환한다.
- * 1은 주기 시작, 0에 가까울수록 만료 임박.
+ * Return the remaining time as a ratio (0~1).
+ * 1 means the start of the period; closer to 0 means expiration is near.
  *
- * @param period - 갱신 주기 (초, 기본: 30)
- * @returns 0~1 사이의 비율
+ * @param period - the refresh period (seconds, default: 30)
+ * @returns a ratio between 0 and 1
  */
 export function getRemainingRatio(period: number = 30): number {
   return getRemainingSeconds(period) / period;
@@ -135,14 +135,14 @@ export function getRemainingRatio(period: number = 30): number {
 // ─── URI Parsing ─────────────────────────────────────────────────────────────
 
 /**
- * otpauth:// URI를 파싱하여 OTP 설정 정보를 추출한다.
+ * Parse an otpauth:// URI and extract the OTP configuration.
  *
- * URI 형식:
+ * URI format:
  * otpauth://totp/Issuer:label?secret=BASE32&issuer=Issuer&algorithm=SHA1&digits=6&period=30
  *
- * @param uri - otpauth:// URI 문자열
- * @returns 파싱 결과
- * @throws URI 형식이 잘못된 경우
+ * @param uri - the otpauth:// URI string
+ * @returns the parsed result
+ * @throws if the URI format is invalid
  */
 export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
   const trimmed = uri.trim();
@@ -160,7 +160,7 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
     );
   }
 
-  // pathname: /Issuer:label 또는 /label
+  // pathname: /Issuer:label or /label
   const path = decodeURIComponent(url.pathname.slice(1)); // remove leading /
   let issuer = '';
   let label = '';
@@ -180,7 +180,7 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
     throw new Error('Invalid OTP Auth URI: missing "secret" parameter');
   }
 
-  // issuer 파라미터가 있으면 path의 issuer보다 우선
+  // The issuer parameter, if present, takes precedence over the path issuer
   const issuerParam = params.get('issuer');
   if (issuerParam) {
     issuer = issuerParam;
@@ -198,7 +198,7 @@ export function parseOTPAuthURI(uri: string): ParsedOTPAuthURI {
   }
 
   if (type === 'hotp') {
-    // HOTP는 counter 파라미터가 필수 (없으면 0으로 시작)
+    // HOTP requires a counter parameter (defaults to 0 if absent)
     const counter = parseInt(params.get('counter') ?? '0', 10);
     if (isNaN(counter) || counter < 0) {
       throw new Error(`Invalid counter: ${params.get('counter')}`);
@@ -243,10 +243,10 @@ function validateDigits(value: number): Digits {
 // ─── URI Generation ──────────────────────────────────────────────────────────
 
 /**
- * OTP 설정에서 otpauth:// URI를 생성한다.
+ * Build an otpauth:// URI from an OTP configuration.
  *
- * @param options - URI 생성 옵션
- * @returns otpauth:// URI 문자열
+ * @param options - URI build options
+ * @returns the otpauth:// URI string
  */
 export function buildOTPAuthURI(options: {
   type?: OTPType;
@@ -284,11 +284,11 @@ export function buildOTPAuthURI(options: {
 // ─── Secret Normalization ─────────────────────────────────────────────────────
 
 /**
- * 사용자 입력의 secret을 정규화한다.
- * 공백, 하이픈, 기타 구분자를 제거하고 대문자로 변환한다.
+ * Normalize a user-entered secret.
+ * Removes whitespace, hyphens, and other separators and uppercases the result.
  *
- * @param secret - 원본 secret 문자열
- * @returns 정규화된 Base32 secret (대문자, 구분자 제거)
+ * @param secret - the raw secret string
+ * @returns the normalized Base32 secret (uppercased, separators removed)
  */
 export function normalizeSecret(secret: string): string {
   return secret.replace(/[\s\-_.]+/g, '').toUpperCase();
@@ -297,10 +297,10 @@ export function normalizeSecret(secret: string): string {
 // ─── Secret Generation ───────────────────────────────────────────────────────
 
 /**
- * 새로운 랜덤 secret을 생성한다 (Base32 인코딩).
+ * Generate a new random secret (Base32-encoded).
  *
- * @param length - 바이트 길이 (기본: 20, 즉 160-bit)
- * @returns Base32 인코딩된 secret
+ * @param length - byte length (default: 20, i.e. 160-bit)
+ * @returns the Base32-encoded secret
  */
 export function createSecret(length: number = 20): string {
   return generateSecret({ length });

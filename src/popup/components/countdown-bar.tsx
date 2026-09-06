@@ -8,8 +8,8 @@ interface CountdownBarProps {
 }
 
 /**
- * 원형 카운트다운 타이머.
- * SVG circle stroke-dashoffset으로 남은 시간을 시각화한다.
+ * Circular countdown timer.
+ * Visualizes the remaining time using an SVG circle's stroke-dashoffset.
  */
 export function CountdownBar({
   period,
@@ -41,7 +41,7 @@ export function CountdownBar({
         className,
       )}
       style={{ width: size, height: size }}
-      aria-label={`${remaining}초 남음`}
+      aria-label={`${remaining} seconds remaining`}
     >
       <svg width={size} height={size} className="-rotate-90">
         {/* Background circle */}

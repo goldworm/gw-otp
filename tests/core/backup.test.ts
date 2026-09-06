@@ -29,7 +29,7 @@ function createMockEntry(overrides: Partial<OTPEntry> = {}): OTPEntry {
     id: crypto.randomUUID(),
     issuer: 'TestService',
     label: 'user@test.com',
-    encryptedSecret: 'plaintext-secret', // 테스트에서는 평문으로 사용
+    encryptedSecret: 'plaintext-secret', // used as plaintext in tests
     tags: [],
     algorithm: 'SHA1',
     digits: 6,
@@ -41,7 +41,7 @@ function createMockEntry(overrides: Partial<OTPEntry> = {}): OTPEntry {
 }
 
 /**
- * createBackup과 동일한 로직을 테스트용으로 수행 (storage 의존 없이)
+ * Perform the same logic as createBackup for testing (without storage dependencies)
  */
 async function createTestBackup(
   entries: OTPEntry[],
@@ -80,7 +80,7 @@ describe('backup module', () => {
     });
 
     it('should throw for invalid JSON', () => {
-      expect(() => parseBackupFile('not json')).toThrow('잘못된 백업 파일');
+      expect(() => parseBackupFile('not json')).toThrow('Invalid backup file');
     });
 
     it('should throw for wrong version', () => {
@@ -89,12 +89,12 @@ describe('backup module', () => {
         salt: 'x',
         encryptedData: 'y',
       });
-      expect(() => parseBackupFile(invalid)).toThrow('지원하지 않는 백업 버전');
+      expect(() => parseBackupFile(invalid)).toThrow('Unsupported backup version');
     });
 
     it('should throw for missing fields', () => {
       const invalid = JSON.stringify({ version: 1 });
-      expect(() => parseBackupFile(invalid)).toThrow('필수 데이터가 누락');
+      expect(() => parseBackupFile(invalid)).toThrow('missing required data');
     });
   });
 
@@ -122,7 +122,7 @@ describe('backup module', () => {
     it('should throw with wrong password', async () => {
       const backup = await createTestBackup([], [], [], 'correct');
       await expect(decryptBackup(backup, 'wrong')).rejects.toThrow(
-        '비밀번호가 올바르지 않습니다',
+        'The password is incorrect',
       );
     });
   });
@@ -131,12 +131,12 @@ describe('backup module', () => {
     it('should replace all data', async () => {
       const sessionKey = await createSessionKey();
 
-      // 기존 데이터
+      // Existing data
       const existingEntry = createMockEntry({ id: 'existing' });
       existingEntry.encryptedSecret = await encrypt('OLD_SECRET', sessionKey);
       await addEntry(existingEntry);
 
-      // 가져올 데이터 (encryptedSecret은 평문)
+      // Data to import (encryptedSecret is plaintext)
       const importEntry = createMockEntry({
         id: 'imported',
         encryptedSecret: 'NEW_SECRET',
@@ -154,7 +154,7 @@ describe('backup module', () => {
       expect(entries).toHaveLength(1);
       expect(entries[0].id).toBe('imported');
 
-      // 재암호화 확인
+      // Verify re-encryption
       const decryptedSecret = await decrypt(
         entries[0].encryptedSecret,
         sessionKey,
@@ -171,7 +171,7 @@ describe('backup module', () => {
     it('should add new entries and skip duplicates', async () => {
       const sessionKey = await createSessionKey();
 
-      // 기존 데이터
+      // Existing data
       const existingEntry = createMockEntry({
         id: 'existing',
         issuer: 'Existing',
@@ -179,7 +179,7 @@ describe('backup module', () => {
       existingEntry.encryptedSecret = await encrypt('EXIST_SECRET', sessionKey);
       await addEntry(existingEntry);
 
-      // 가져올 데이터 (같은 ID + 새 ID)
+      // Data to import (same ID + new ID)
       const duplicateEntry = createMockEntry({
         id: 'existing',
         encryptedSecret: 'DUP',
@@ -214,8 +214,8 @@ describe('backup module', () => {
       const data = {
         entries: [],
         tags: [
-          { id: 'tag-a', name: 'A-dup', color: '#222' }, // 중복
-          { id: 'tag-b', name: 'B', color: '#333' }, // 신규
+          { id: 'tag-a', name: 'A-dup', color: '#222' }, // duplicate
+          { id: 'tag-b', name: 'B', color: '#333' }, // new
         ],
         order: [],
       };
@@ -224,7 +224,7 @@ describe('backup module', () => {
 
       const tags = await loadTags();
       expect(tags).toHaveLength(2);
-      expect(tags.find((t) => t.id === 'tag-a')!.name).toBe('A'); // 기존 유지
+      expect(tags.find((t) => t.id === 'tag-a')!.name).toBe('A'); // existing kept
       expect(tags.find((t) => t.id === 'tag-b')!.name).toBe('B');
     });
   });
@@ -234,7 +234,7 @@ describe('backup module', () => {
       const sessionKey = await createSessionKey();
       const backupPassword = 'backup-pass';
 
-      // 원본 데이터 준비
+      // Prepare source data
       const entry1 = createMockEntry({
         id: 'rt-1',
         issuer: 'Google',
@@ -246,7 +246,7 @@ describe('backup module', () => {
         encryptedSecret: 'SECRET_B',
       });
 
-      // createTestBackup으로 백업 생성 (entries의 encryptedSecret은 평문)
+      // Create a backup with createTestBackup (entries' encryptedSecret is plaintext)
       const backup = await createTestBackup(
         [entry1, entry2],
         [{ id: 'tag-x', name: 'X', color: '#abc' }],
@@ -254,19 +254,19 @@ describe('backup module', () => {
         backupPassword,
       );
 
-      // 백업 직렬화 → 파싱
+      // Serialize → parse the backup
       const json = JSON.stringify(backup);
       const parsed = parseBackupFile(json);
 
-      // 복호화
+      // Decrypt
       const data = await decryptBackup(parsed, backupPassword);
       expect(data.entries).toHaveLength(2);
 
-      // 가져오기
+      // Import
       const result = await importBackup(data, sessionKey, 'replace');
       expect(result.imported).toBe(2);
 
-      // 결과 확인
+      // Verify the result
       const entries = await loadEntries();
       expect(entries).toHaveLength(2);
 

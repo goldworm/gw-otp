@@ -1,78 +1,78 @@
 // ─── OTP Entry ───────────────────────────────────────────────────────────────
 
-/** HMAC 알고리즘 */
+/** HMAC algorithm */
 export type Algorithm = 'SHA1' | 'SHA256' | 'SHA512';
 
-/** OTP 자릿수 */
+/** Number of OTP digits */
 export type Digits = 6 | 8;
 
-/** OTP 방식: TOTP(시간 기반) 또는 HOTP(카운터 기반) */
+/** OTP type: TOTP (time-based) or HOTP (counter-based) */
 export type OTPType = 'totp' | 'hotp';
 
-/** OTP 항목 */
+/** OTP entry */
 export interface OTPEntry {
-  /** 고유 식별자 (UUID v4) */
+  /** Unique identifier (UUID v4) */
   id: string;
-  /** OTP 방식 (선택적, 기본 'totp' — 기존 데이터 호환) */
+  /** OTP type (optional, default 'totp' — for backward compatibility) */
   type?: OTPType;
-  /** 서비스 제공자 이름 (예: Google, GitHub) */
+  /** Service provider name (e.g. Google, GitHub) */
   issuer: string;
-  /** 계정 식별자 (예: hello@gmail.com) */
+  /** Account identifier (e.g. hello@gmail.com) */
   label: string;
-  /** 암호화된 secret 키 (Base64 인코딩) */
+  /** Encrypted secret key (Base64-encoded) */
   encryptedSecret: string;
-  /** 할당된 태그 ID 목록 */
+  /** List of assigned tag IDs */
   tags: string[];
-  /** HMAC 알고리즘 */
+  /** HMAC algorithm */
   algorithm: Algorithm;
-  /** OTP 자릿수 */
+  /** Number of OTP digits */
   digits: Digits;
-  /** 갱신 주기 (초, TOTP 전용) */
+  /** Refresh period (seconds, TOTP only) */
   period: number;
-  /** HOTP 카운터 (HOTP 전용, 기본 0) */
+  /** HOTP counter (HOTP only, default 0) */
   counter?: number;
-  /** 상단 고정 여부 (선택적, 기본 false) */
+  /** Whether pinned to the top (optional, default false) */
   pinned?: boolean;
-  /** 생성 일시 (ISO 8601) */
+  /** Creation timestamp (ISO 8601) */
   createdAt: string;
-  /** 수정 일시 (ISO 8601) */
+  /** Update timestamp (ISO 8601) */
   updatedAt: string;
 }
 
 // ─── Tag ─────────────────────────────────────────────────────────────────────
 
-/** 태그 */
+/** Tag */
 export interface Tag {
-  /** 고유 식별자 (UUID v4) */
+  /** Unique identifier (UUID v4) */
   id: string;
-  /** 태그 표시 이름 */
+  /** Tag display name */
   name: string;
-  /** 태그 색상 (hex) */
+  /** Tag color (hex) */
   color: string;
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-/** 테마 설정 */
+/** Theme setting */
 export type Theme = 'light' | 'dark' | 'system';
 
-/** 자동 잠금 시간 (분). 0=팝업 닫을 때 즉시, 'never'=수동 잠금만 */
+/** Auto-lock delay (minutes). 0 = immediately on popup close, 'never' = manual lock only */
 export type AutoLockMinutes = 0 | 1 | 5 | 10 | 15 | 30 | 'never';
 
-/** 지원 언어 */
+/** Supported languages */
 export type Language = 'en' | 'ko';
 
-/** 앱 설정 */
+/** App settings */
 export interface Settings {
-  /** hover 시에만 OTP 코드 표시 */
+  /** Show OTP codes only on hover */
   hideCodesUntilHover: boolean;
-  /** 테마 설정 */
+  /** Theme setting */
   theme: Theme;
-  /** 자동 잠금 시간 (분) */
+  /** Auto-lock delay (minutes) */
   autoLockMinutes: AutoLockMinutes;
-  /** UI 언어 */
+  /** UI language */
   language: Language;
-  /** 마스터 비밀번호 검증용 암호문 (Base64) */
+  /** Ciphertext used to verify the master password (Base64) */
   passwordHash: string;
   /** PBKDF2 salt (Base64) */
   salt: string;
@@ -80,21 +80,21 @@ export interface Settings {
 
 // ─── Storage Schema ──────────────────────────────────────────────────────────
 
-/** chrome.storage.sync에 저장되는 전체 데이터 구조 */
+/** The full data structure stored in chrome.storage.local */
 export interface StorageSchema {
-  /** 설정 */
+  /** Settings */
   settings: Settings;
-  /** OTP 항목 목록 */
+  /** List of OTP entries */
   entries: OTPEntry[];
-  /** 태그 목록 */
+  /** List of tags */
   tags: Tag[];
-  /** OTP 표시 순서 (entry ID 배열) */
+  /** OTP display order (array of entry IDs) */
   order: string[];
 }
 
 // ─── Messages (Background ↔ Popup) ──────────────────────────────────────────
 
-/** Popup → Background 요청 */
+/** Popup → Background request */
 export type MessageRequest =
   | { type: 'unlock'; password: string }
   | { type: 'lock' }
@@ -103,7 +103,7 @@ export type MessageRequest =
   | { type: 'resetTimer' }
   | { type: 'changePassword'; currentPassword: string; newPassword: string };
 
-/** Background → Popup 응답 */
+/** Background → Popup response */
 export type MessageResponse =
   | { type: 'unlock'; success: boolean; error?: string }
   | { type: 'lock'; success: boolean }
@@ -118,41 +118,41 @@ export type MessageResponse =
 
 // ─── Backup ──────────────────────────────────────────────────────────────────
 
-/** 내보내기 파일 구조 */
+/** Export file structure */
 export interface BackupFile {
-  /** 파일 포맷 버전 */
+  /** File format version */
   version: 1;
-  /** 생성 일시 (ISO 8601) */
+  /** Creation timestamp (ISO 8601) */
   exportedAt: string;
-  /** PBKDF2 salt (Base64, 백업 전용) */
+  /** PBKDF2 salt (Base64, backup-specific) */
   salt: string;
-  /** 암호화된 데이터 (Base64) */
+  /** Encrypted data (Base64) */
   encryptedData: string;
 }
 
-// ─── OTP Auth URI (파싱 결과) ────────────────────────────────────────────────
+// ─── OTP Auth URI (parse result) ─────────────────────────────────────────────
 
-/** otpauth:// URI 파싱 결과 */
+/** Result of parsing an otpauth:// URI */
 export interface ParsedOTPAuthURI {
-  /** OTP 타입 (totp 또는 hotp) */
+  /** OTP type (totp or hotp) */
   type: OTPType;
-  /** 서비스 제공자 */
+  /** Service provider */
   issuer: string;
-  /** 계정 식별자 */
+  /** Account identifier */
   label: string;
-  /** secret (평문, Base32 인코딩) */
+  /** Secret (plaintext, Base32-encoded) */
   secret: string;
-  /** 알고리즘 */
+  /** Algorithm */
   algorithm: Algorithm;
-  /** 자릿수 */
+  /** Number of digits */
   digits: Digits;
-  /** 갱신 주기 (TOTP 전용) */
+  /** Refresh period (TOTP only) */
   period: number;
-  /** HOTP 카운터 (HOTP 전용) */
+  /** HOTP counter (HOTP only) */
   counter?: number;
 }
 
 // ─── Page Navigation ─────────────────────────────────────────────────────────
 
-/** 팝업 내 페이지 */
+/** Page within the popup */
 export type Page = 'unlock' | 'main' | 'add' | 'edit' | 'settings';

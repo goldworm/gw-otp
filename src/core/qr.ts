@@ -1,22 +1,23 @@
 /**
- * QR 코드 디코딩 모듈
+ * QR code module
  *
- * - 이미지 파일에서 QR 코드를 디코딩한다.
- * - Data URL에서 QR 코드를 디코딩한다.
+ * - Decode a QR code from an image file.
+ * - Decode a QR code from a Data URL.
+ * - Encode text into a QR code Data URL.
  *
- * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
- * (Canvas API는 브라우저 표준이므로 허용)
+ * This module is pure TypeScript and has no UI dependencies.
+ * (The Canvas API is a browser standard, so it is allowed.)
  */
 
 import jsQR from 'jsqr';
 import QRCode from 'qrcode';
 
 /**
- * 주어진 텍스트를 QR 코드 Data URL(PNG)로 인코딩한다.
+ * Encode the given text into a QR code Data URL (PNG).
  *
- * @param text - QR로 변환할 문자열 (예: otpauth:// URI)
- * @param size - QR 이미지 크기 (px, 기본 240)
- * @returns data:image/png;base64,... 형식의 Data URL
+ * @param text - the string to encode (e.g. an otpauth:// URI)
+ * @param size - the QR image size (px, default 240)
+ * @returns a Data URL in the form data:image/png;base64,...
  */
 export async function encodeQRToDataURL(
   text: string,
@@ -30,11 +31,11 @@ export async function encodeQRToDataURL(
 }
 
 /**
- * 이미지 파일(File 객체)에서 QR 코드를 디코딩한다.
+ * Decode a QR code from an image file (File object).
  *
- * @param file - 이미지 파일 (png, jpg, gif 등)
- * @returns QR 코드에 포함된 문자열 데이터
- * @throws QR 코드를 찾을 수 없는 경우
+ * @param file - the image file (png, jpg, gif, etc.)
+ * @returns the string data contained in the QR code
+ * @throws if no QR code can be found
  */
 export async function decodeQRFromFile(file: File): Promise<string> {
   const dataUrl = await fileToDataURL(file);
@@ -42,37 +43,37 @@ export async function decodeQRFromFile(file: File): Promise<string> {
 }
 
 /**
- * Data URL에서 QR 코드를 디코딩한다.
+ * Decode a QR code from a Data URL.
  *
- * @param dataUrl - 이미지 Data URL (data:image/...)
- * @returns QR 코드에 포함된 문자열 데이터
- * @throws QR 코드를 찾을 수 없는 경우
+ * @param dataUrl - the image Data URL (data:image/...)
+ * @returns the string data contained in the QR code
+ * @throws if no QR code can be found
  */
 export async function decodeQRFromDataURL(dataUrl: string): Promise<string> {
   const imageData = await dataURLToImageData(dataUrl);
   const result = jsQR(imageData.data, imageData.width, imageData.height);
 
   if (!result) {
-    throw new Error('QR 코드를 찾을 수 없습니다.');
+    throw new Error('No QR code could be found.');
   }
 
   return result.data;
 }
 
 /**
- * File을 Data URL로 변환한다.
+ * Convert a File to a Data URL.
  */
 function fileToDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
+    reader.onerror = () => reject(new Error('The file could not be read.'));
     reader.readAsDataURL(file);
   });
 }
 
 /**
- * Data URL을 ImageData로 변환한다 (Canvas 사용).
+ * Convert a Data URL to ImageData (using Canvas).
  */
 function dataURLToImageData(dataUrl: string): Promise<ImageData> {
   return new Promise((resolve, reject) => {
@@ -84,7 +85,7 @@ function dataURLToImageData(dataUrl: string): Promise<ImageData> {
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error('Canvas 2D context를 생성할 수 없습니다.'));
+        reject(new Error('Could not create a Canvas 2D context.'));
         return;
       }
 
@@ -92,7 +93,7 @@ function dataURLToImageData(dataUrl: string): Promise<ImageData> {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       resolve(imageData);
     };
-    img.onerror = () => reject(new Error('이미지를 로드할 수 없습니다.'));
+    img.onerror = () => reject(new Error('The image could not be loaded.'));
     img.src = dataUrl;
   });
 }

@@ -9,7 +9,7 @@ import { normalizeSecret } from '@/core/otp';
 import { useI18n } from '@/popup/i18n/use-i18n';
 import type { Algorithm, Digits, OTPType, Tag } from '@/types';
 
-/** 첫 글자를 제외한 나머지를 마스킹한다. */
+/** Mask everything except the first character. */
 function maskSecret(secret: string): string {
   if (secret.length <= 1) return secret;
   return secret[0] + '•'.repeat(secret.length - 1);
@@ -271,7 +271,7 @@ export function EditOTPPage({
           )}
         </div>
 
-        {/* 태그 선택 */}
+        {/* Tag selection */}
         {tags.length > 0 && (
           <div className="space-y-2">
             <Label>{t('edit.tagsLabel')}</Label>

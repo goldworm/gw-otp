@@ -1,6 +1,6 @@
 import type { Translation } from './index';
 
-/** 한국어 번역 */
+/** Korean translations */
 export const ko: Translation = {
   common: {
     back: '뒤로',

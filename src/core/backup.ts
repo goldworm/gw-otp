@@ -1,10 +1,10 @@
 /**
- * 내보내기/가져오기 모듈
+ * Export/import module
  *
- * - OTP 데이터를 암호화된 .gw-otp 파일로 내보내기
- * - .gw-otp 파일에서 데이터를 복호화하여 가져오기
+ * - Export OTP data to an encrypted .gw-otp file
+ * - Decrypt and import data from a .gw-otp file
  *
- * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
+ * This module is pure TypeScript and has no UI dependencies.
  */
 
 import type { BackupFile, OTPEntry, Tag } from '@/types';
@@ -25,7 +25,7 @@ import {
   saveOrder,
 } from '@/core/storage';
 
-/** 백업 파일 포맷 버전 */
+/** Backup file format version */
 const BACKUP_VERSION = 1;
 
 // ─── Export Types ────────────────────────────────────────────────────────────
@@ -39,32 +39,32 @@ interface ExportData {
 // ─── Export ──────────────────────────────────────────────────────────────────
 
 /**
- * 현재 저장된 모든 OTP 데이터를 암호화하여 BackupFile로 생성한다.
+ * Encrypt all currently stored OTP data and build a BackupFile.
  *
- * @param password - 내보내기 비밀번호
- * @param sessionKey - 현재 세션의 CryptoKey (entries secret 복호화용)
- * @returns BackupFile 객체 (JSON 직렬화 가능)
+ * @param password - the export password
+ * @param sessionKey - the current session's CryptoKey (to decrypt entry secrets)
+ * @returns a BackupFile object (JSON-serializable)
  */
 export async function createBackup(
   password: string,
   sessionKey: CryptoKey,
 ): Promise<BackupFile> {
-  // 1. 현재 데이터 로드
+  // 1. Load current data
   const [entries, tags, order] = await Promise.all([
     loadEntries(),
     loadTags(),
     loadOrder(),
   ]);
 
-  // 2. entries의 encryptedSecret을 복호화하여 평문으로 변환
+  // 2. Decrypt each entry's encryptedSecret into plaintext
   const decryptedEntries: OTPEntry[] = await Promise.all(
     entries.map(async (entry) => {
       const plainSecret = await decrypt(entry.encryptedSecret, sessionKey);
-      return { ...entry, encryptedSecret: plainSecret }; // 임시로 평문 저장
+      return { ...entry, encryptedSecret: plainSecret }; // temporarily hold plaintext
     }),
   );
 
-  // 3. 전체 데이터를 JSON으로 직렬화
+  // 3. Serialize the whole dataset to JSON
   const exportData: ExportData = {
     entries: decryptedEntries,
     tags,
@@ -72,7 +72,7 @@ export async function createBackup(
   };
   const jsonData = JSON.stringify(exportData);
 
-  // 4. 내보내기 비밀번호로 암호화
+  // 4. Encrypt with the export password
   const saltBytes = generateSalt();
   const key = await deriveKey(password, saltBytes);
   const encryptedData = await encrypt(jsonData, key);
@@ -86,10 +86,10 @@ export async function createBackup(
 }
 
 /**
- * BackupFile을 JSON 문자열로 변환하여 다운로드 가능한 Blob URL을 생성한다.
+ * Serialize a BackupFile to JSON and create a downloadable Blob URL.
  *
- * @param backup - BackupFile 객체
- * @returns { url, filename } - 다운로드 URL과 파일명
+ * @param backup - the BackupFile object
+ * @returns { url, filename } - the download URL and file name
  */
 export function createDownloadURL(backup: BackupFile): {
   url: string;
@@ -106,40 +106,40 @@ export function createDownloadURL(backup: BackupFile): {
 // ─── Import ──────────────────────────────────────────────────────────────────
 
 /**
- * .gw-otp 파일을 파싱한다.
+ * Parse a .gw-otp file.
  *
- * @param fileContent - 파일 내용 (JSON 문자열)
- * @returns BackupFile 객체
- * @throws 형식이 잘못된 경우
+ * @param fileContent - the file content (JSON string)
+ * @returns a BackupFile object
+ * @throws if the format is invalid
  */
 export function parseBackupFile(fileContent: string): BackupFile {
   let parsed: unknown;
   try {
     parsed = JSON.parse(fileContent);
   } catch {
-    throw new Error('잘못된 백업 파일 형식입니다.');
+    throw new Error('Invalid backup file format.');
   }
 
   const backup = parsed as BackupFile;
   if (!backup || backup.version !== BACKUP_VERSION) {
     throw new Error(
-      `지원하지 않는 백업 버전입니다: ${(backup as { version?: unknown })?.version}`,
+      `Unsupported backup version: ${(backup as { version?: unknown })?.version}`,
     );
   }
   if (!backup.salt || !backup.encryptedData) {
-    throw new Error('백업 파일에 필수 데이터가 누락되었습니다.');
+    throw new Error('The backup file is missing required data.');
   }
 
   return backup;
 }
 
 /**
- * BackupFile에서 데이터를 복호화하여 반환한다.
+ * Decrypt and return the data from a BackupFile.
  *
- * @param backup - BackupFile 객체
- * @param password - 내보내기 시 사용한 비밀번호
- * @returns 복호화된 ExportData
- * @throws 비밀번호가 틀린 경우
+ * @param backup - the BackupFile object
+ * @param password - the password used when exporting
+ * @returns the decrypted ExportData
+ * @throws if the password is incorrect
  */
 export async function decryptBackup(
   backup: BackupFile,
@@ -152,7 +152,7 @@ export async function decryptBackup(
   try {
     jsonData = await decrypt(backup.encryptedData, key);
   } catch {
-    throw new Error('비밀번호가 올바르지 않습니다.');
+    throw new Error('The password is incorrect.');
   }
 
   const data = JSON.parse(jsonData) as ExportData;
@@ -161,26 +161,26 @@ export async function decryptBackup(
     !Array.isArray(data.tags) ||
     !Array.isArray(data.order)
   ) {
-    throw new Error('백업 데이터 구조가 올바르지 않습니다.');
+    throw new Error('The backup data structure is invalid.');
   }
 
   return data;
 }
 
 /**
- * 복호화된 백업 데이터를 현재 storage에 병합한다.
- * entries의 평문 secret을 현재 sessionKey로 재암호화하여 저장한다.
+ * Merge decrypted backup data into the current storage.
+ * Re-encrypts each entry's plaintext secret with the current sessionKey.
  *
- * @param data - 복호화된 ExportData (entries의 encryptedSecret은 실제 평문)
- * @param sessionKey - 현재 세션의 CryptoKey
- * @param mode - 'merge' (기존 유지 + 추가) 또는 'replace' (전체 교체)
+ * @param data - the decrypted ExportData (entries' encryptedSecret is actual plaintext)
+ * @param sessionKey - the current session's CryptoKey
+ * @param mode - 'merge' (keep existing + add) or 'replace' (replace everything)
  */
 export async function importBackup(
   data: ExportData,
   sessionKey: CryptoKey,
   mode: 'merge' | 'replace' = 'merge',
 ): Promise<{ imported: number; skipped: number }> {
-  // entries의 평문 secret을 현재 키로 재암호화
+  // Re-encrypt each entry's plaintext secret with the current key
   const reEncryptedEntries: OTPEntry[] = await Promise.all(
     data.entries.map(async (entry) => {
       const encryptedSecret = await encrypt(entry.encryptedSecret, sessionKey);
@@ -195,7 +195,7 @@ export async function importBackup(
     return { imported: reEncryptedEntries.length, skipped: 0 };
   }
 
-  // merge 모드: 기존 데이터 + 새 데이터 병합
+  // merge mode: combine existing data with new data
   const [existingEntries, existingTags, existingOrder] = await Promise.all([
     loadEntries(),
     loadTags(),
@@ -206,16 +206,16 @@ export async function importBackup(
   const newEntries = reEncryptedEntries.filter((e) => !existingIds.has(e.id));
   const skipped = reEncryptedEntries.length - newEntries.length;
 
-  // entries 병합
+  // Merge entries
   const mergedEntries = [...existingEntries, ...newEntries];
   await saveEntries(mergedEntries);
 
-  // tags 병합 (ID 기준 중복 제거)
+  // Merge tags (dedupe by ID)
   const existingTagIds = new Set(existingTags.map((t) => t.id));
   const newTags = data.tags.filter((t) => !existingTagIds.has(t.id));
   await saveTags([...existingTags, ...newTags]);
 
-  // order 병합 (새 항목 끝에 추가)
+  // Merge order (append new items at the end)
   const newOrderIds = newEntries.map((e) => e.id);
   await saveOrder([...existingOrder, ...newOrderIds]);
 

@@ -20,7 +20,7 @@ export function TagFilter({
 
   return (
     <div className={cn('flex items-center gap-1.5 overflow-x-auto', className)}>
-      {/* 전체 보기 버튼 */}
+      {/* Show-all button */}
       <button
         type="button"
         onClick={() => onSelect(null)}
@@ -34,7 +34,7 @@ export function TagFilter({
         {t('main.allTags')}
       </button>
 
-      {/* 태그 버튼들 */}
+      {/* Tag buttons */}
       {tags.map((tag) => (
         <button
           key={tag.id}

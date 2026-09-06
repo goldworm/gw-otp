@@ -57,7 +57,7 @@ describe('crypto module', () => {
       const key1 = await deriveKey('same-password', salt);
       const key2 = await deriveKey('same-password', salt);
 
-      // 같은 키로 암호화한 결과를 서로 복호화할 수 있어야 함
+      // Ciphertext from one key must be decryptable by the other
       const encrypted = await encrypt('test', key1);
       const decrypted = await decrypt(encrypted, key2);
       expect(decrypted).toBe('test');
@@ -105,7 +105,7 @@ describe('crypto module', () => {
 
       expect(encrypted1).not.toBe(encrypted2);
 
-      // 둘 다 정상 복호화 가능
+      // Both must decrypt correctly
       expect(await decrypt(encrypted1, key)).toBe(plaintext);
       expect(await decrypt(encrypted2, key)).toBe(plaintext);
     });
@@ -114,7 +114,7 @@ describe('crypto module', () => {
       const salt = generateSalt();
       const key = await deriveKey('password', salt);
 
-      const plaintext = '한글 테스트 🔑 émojis';
+      const plaintext = 'unicode 你好 🔑 émojis';
       const encrypted = await encrypt(plaintext, key);
       const decrypted = await decrypt(encrypted, key);
 
@@ -145,7 +145,7 @@ describe('crypto module', () => {
       const key = await deriveKey('password', salt);
 
       const encrypted = await encrypt('data', key);
-      // 암호문의 일부를 변조
+      // Tamper with part of the ciphertext
       const tampered = encrypted.slice(0, -2) + 'XX';
       await expect(decrypt(tampered, key)).rejects.toThrow();
     });
@@ -200,7 +200,7 @@ describe('crypto module', () => {
       const key = await unlockWithPassword('my-secret', salt, passwordHash);
       expect(key).not.toBeNull();
 
-      // 반환된 키로 암호화/복호화 가능한지 확인
+      // Verify the returned key can encrypt/decrypt
       const encrypted = await encrypt('test-data', key!);
       const decrypted = await decrypt(encrypted, key!);
       expect(decrypted).toBe('test-data');
@@ -220,10 +220,10 @@ describe('crypto module', () => {
         key: initKey,
       } = await initializePassword('shared-password');
 
-      // initializePassword의 키로 암호화
+      // Encrypt with the key from initializePassword
       const encrypted = await encrypt('important', initKey);
 
-      // unlockWithPassword의 키로 복호화
+      // Decrypt with the key from unlockWithPassword
       const unlockKey = await unlockWithPassword(
         'shared-password',
         salt,

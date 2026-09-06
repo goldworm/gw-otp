@@ -101,8 +101,8 @@ describe('otp module', () => {
 
     it('should reject an invalid token', async () => {
       const secret = createSecret();
-      // 통계적으로 거의 항상 false이지만, 아주 드물게 맞을 수 있으므로
-      // 대신 생성한 것과 다른 코드로 테스트
+      // Statistically almost always false, but it could rarely match,
+      // so test with a code different from the generated one
       const token = await generateTOTP(secret);
       const wrongToken = token === '123456' ? '654321' : '123456';
       const result = await verifyTOTP(wrongToken, secret);

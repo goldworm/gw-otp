@@ -215,7 +215,7 @@ describe('migration module', () => {
       const uri = buildMigrationURIWithHOTP();
       const results = parseMigrationURI(uri);
 
-      // HOTP + TOTP 모두 포함
+      // Includes both HOTP and TOTP
       expect(results).toHaveLength(2);
 
       const hotp = results.find((r) => r.type === 'hotp');

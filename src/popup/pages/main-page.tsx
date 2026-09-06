@@ -25,7 +25,7 @@ interface MainPageProps {
   onEditEntry: (id: string) => void;
 }
 
-/** 복호화된 OTP 항목 (표시용) */
+/** Decrypted OTP entry (for display) */
 interface DecryptedEntry extends Omit<OTPEntry, 'encryptedSecret'> {
   secret: string;
 }
@@ -54,10 +54,10 @@ export function MainPage({
         loadSettings(),
       ]);
 
-      // 순서대로 정렬
+      // Sort by order
       const sorted = sortByOrder(rawEntries, order);
 
-      // secret 복호화
+      // Decrypt secrets
       const decrypted: DecryptedEntry[] = await Promise.all(
         sorted.map(async (entry) => {
           let secret = '';
@@ -87,16 +87,16 @@ export function MainPage({
     loadData();
   }, [loadData]);
 
-  // 필터링된 항목
+  // Filtered entries
   const filteredEntries = useMemo(() => {
     let result = entries;
 
-    // 태그 필터
+    // Tag filter
     if (selectedTagId) {
       result = result.filter((e) => e.tags.includes(selectedTagId));
     }
 
-    // 검색 필터 (issuer, label, 태그 이름 매칭)
+    // Search filter (match issuer, label, tag name)
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       const tagNameById = new Map(
@@ -105,14 +105,14 @@ export function MainPage({
       result = result.filter((e) => {
         if (e.issuer.toLowerCase().includes(query)) return true;
         if (e.label.toLowerCase().includes(query)) return true;
-        // 항목에 할당된 태그 이름 매칭
+        // Match names of tags assigned to the entry
         return e.tags.some((tagId) =>
           tagNameById.get(tagId)?.includes(query),
         );
       });
     }
 
-    // 고정 항목을 항상 최상단에 배치 (그 외 순서는 entries 순서 유지)
+    // Always place pinned items at the top (other ordering follows entries order)
     return [...result].sort((a, b) => {
       const pinnedA = a.pinned ? 0 : 1;
       const pinnedB = b.pinned ? 0 : 1;
@@ -120,25 +120,25 @@ export function MainPage({
     });
   }, [entries, selectedTagId, searchQuery, tags]);
 
-  // 순서 변경 핸들러
+  // Reorder handler
   async function handleReorder(newOrder: string[]) {
-    // 필터링 중이면 전체 순서에서 해당 항목만 재배치
+    // While filtering, reorder only affects the matched items
     if (selectedTagId || searchQuery.trim()) {
-      // 필터링 상태에서는 재정렬 미지원 (전체 보기에서만)
+      // Reordering is not supported while filtering (only in the full view)
       return;
     }
 
-    // UI를 먼저 업데이트 (optimistic)
+    // Update the UI first (optimistic)
     const reordered = newOrder
       .map((id) => entries.find((e) => e.id === id))
       .filter((e): e is DecryptedEntry => e !== undefined);
     setEntries(reordered);
 
-    // Storage에 저장
+    // Persist to storage
     await reorder(newOrder);
   }
 
-  // 삭제 핸들러
+  // Delete handler
   async function handleDelete(id: string) {
     const confirmed = window.confirm(t('main.deleteConfirm'));
     if (!confirmed) return;
@@ -147,7 +147,7 @@ export function MainPage({
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // 고정 토글 핸들러
+  // Pin toggle handler
   async function handleTogglePin(id: string) {
     const newPinned = await togglePin(id);
     setEntries((prev) =>
@@ -155,7 +155,7 @@ export function MainPage({
     );
   }
 
-  // HOTP 다음 코드 생성 핸들러 (카운터 증가)
+  // HOTP generate-next-code handler (increments the counter)
   async function handleGenerateNext(id: string) {
     const newCounter = await incrementCounter(id);
     setEntries((prev) =>
@@ -278,19 +278,19 @@ export function MainPage({
 }
 
 /**
- * entries를 정렬한다.
- * 1순위: 고정(pinned) 항목이 먼저
- * 2순위: order 배열 순서
+ * Sort entries.
+ * Primary: pinned items first
+ * Secondary: order-array order
  */
 function sortByOrder(entries: OTPEntry[], order: string[]): OTPEntry[] {
   const orderMap = new Map(order.map((id, idx) => [id, idx]));
   return [...entries].sort((a, b) => {
-    // pinned 우선
+    // Pinned first
     const pinnedA = a.pinned ? 0 : 1;
     const pinnedB = b.pinned ? 0 : 1;
     if (pinnedA !== pinnedB) return pinnedA - pinnedB;
 
-    // order 순서
+    // Order-array order
     const idxA = orderMap.get(a.id) ?? Infinity;
     const idxB = orderMap.get(b.id) ?? Infinity;
     return idxA - idxB;

@@ -59,7 +59,7 @@ export function SettingsPage({
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 비밀번호 변경 전용 상태
+  // Password-change-only state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -89,11 +89,11 @@ export function SettingsPage({
     }
   }
 
-  // 태그 추가
+  // Add tag
   async function handleAddTag() {
     const name = newTagName.trim();
     if (!name) return;
-    // 즉시 입력값 초기화 (중복 호출 방지)
+    // Reset the input immediately (prevents duplicate calls)
     setNewTagName('');
     const tag: Tag = {
       id: crypto.randomUUID(),
@@ -104,13 +104,13 @@ export function SettingsPage({
     setTags((prev) => [...prev, tag]);
   }
 
-  // 태그 삭제
+  // Delete tag
   async function handleDeleteTag(tagId: string) {
     await deleteTag(tagId);
     setTags((prev) => prev.filter((t) => t.id !== tagId));
   }
 
-  // 내보내기
+  // Export
   async function handleExport() {
     setError('');
     setMessage('');
@@ -124,7 +124,7 @@ export function SettingsPage({
       const backup = await createBackup(exportPassword, sessionKey);
       const { url, filename } = createDownloadURL(backup);
 
-      // 다운로드 트리거
+      // Trigger download
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -142,7 +142,7 @@ export function SettingsPage({
     }
   }
 
-  // 가져오기
+  // Import
   async function handleImport() {
     setError('');
     setMessage('');
@@ -178,7 +178,7 @@ export function SettingsPage({
     }
   }
 
-  // 비밀번호 변경
+  // Change password
   async function handleChangePassword() {
     setPwError('');
     setPwMessage('');
@@ -210,7 +210,7 @@ export function SettingsPage({
 
       if (response.type === 'changePassword') {
         if (response.success) {
-          // Background에서 새 salt로 settings를 갱신했으므로 그 salt로 키 재유도
+          // The background updated settings with a new salt, so re-derive the key with that salt
           const settings = await loadSettings();
           if (settings) {
             const newKey = await deriveKey(
@@ -260,7 +260,7 @@ export function SettingsPage({
       </header>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
-        {/* 테마 설정 */}
+        {/* Theme setting */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">{t('settings.themeLabel')}</Label>
           <div className="grid grid-cols-3 gap-2">
@@ -285,7 +285,7 @@ export function SettingsPage({
           </div>
         </div>
 
-        {/* 언어 설정 */}
+        {/* Language setting */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.languageLabel')}
@@ -300,7 +300,7 @@ export function SettingsPage({
             <option value="ko">{t('settings.langKo')}</option>
           </select>
         </div>
-        {/* 자동 잠금 */}
+        {/* Auto-lock */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.autoLockLabel')}
@@ -343,7 +343,7 @@ export function SettingsPage({
           </div>
         </div>
 
-        {/* 프라이버시 설정 */}
+        {/* Privacy setting */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.privacyLabel')}
@@ -381,13 +381,13 @@ export function SettingsPage({
             </button>
           </div>
         </div>
-        {/* 태그 관리 */}
+        {/* Tag management */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.tagManageLabel')}
           </Label>
           <div className="space-y-2 rounded-lg border p-3">
-            {/* 기존 태그 목록 */}
+            {/* Existing tag list */}
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
@@ -415,7 +415,7 @@ export function SettingsPage({
               </p>
             )}
 
-            {/* 새 태그 추가 */}
+            {/* Add new tag */}
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -449,7 +449,7 @@ export function SettingsPage({
             </div>
           </div>
         </div>
-        {/* 비밀번호 변경 */}
+        {/* Change password */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.changePasswordLabel')}
@@ -534,7 +534,7 @@ export function SettingsPage({
             </Button>
           </div>
         </div>
-        {/* 가져오기 */}
+        {/* Import */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             {t('settings.importLabel')}
@@ -568,7 +568,7 @@ export function SettingsPage({
             </Button>
           </div>
         </div>
-        {/* 메시지 */}
+        {/* Messages */}
         {message && (
           <p className="text-sm text-green-600 dark:text-green-400">
             {message}

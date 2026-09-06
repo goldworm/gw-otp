@@ -51,7 +51,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     loadTags().then(setTags);
   }, []);
 
-  // QR 이미지 파일 처리
+  // Handle QR image file
   async function handleQRFile(e: React.ChangeEvent<HTMLInputElement>) {
     setError('');
     setMigrationItems([]);
@@ -66,13 +66,13 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       setError(err instanceof Error ? err.message : t('add.errQrDecode'));
     }
 
-    // input 초기화 (같은 파일 재선택 가능하도록)
+    // Reset the input (so the same file can be selected again)
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   }
 
-  // 화면 캡처 처리
+  // Handle screen capture
   async function handleCapture() {
     setError('');
     setMigrationItems([]);
@@ -98,7 +98,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     }
   }
 
-  // QR/캡처에서 디코딩된 데이터 처리 (otpauth:// 또는 otpauth-migration://)
+  // Handle data decoded from a QR/capture (otpauth:// or otpauth-migration://)
   function handleQRData(data: string) {
     if (isMigrationURI(data)) {
       const items = parseMigrationURI(data);
@@ -107,7 +107,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         return;
       }
       setMigrationItems(items);
-      setTabMode('qr'); // QR 탭에서 migration 리스트 표시
+      setTabMode('qr'); // Show the migration list on the QR tab
     } else {
       const parsed = parseOTPAuthURI(data);
       setOtpType(parsed.type);
@@ -122,7 +122,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     }
   }
 
-  // URI 파싱
+  // Parse URI
   function handleParseURI() {
     setError('');
     setMigrationItems([]);
@@ -140,7 +140,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
         }
         setMigrationItems(items);
       } else {
-        // 일반 otpauth:// URI
+        // Regular otpauth:// URI
         const parsed = parseOTPAuthURI(input);
         setOtpType(parsed.type);
         setIssuer(parsed.issuer);
@@ -157,7 +157,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     }
   }
 
-  // Migration 일괄 등록
+  // Bulk import from migration
   async function handleImportMigration() {
     setError('');
     setMigrationImporting(true);
@@ -190,7 +190,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       setMigrationMessage(t('add.imported', { count: imported }));
       setMigrationItems([]);
       setUriInput('');
-      // 잠시 후 메인으로
+      // Go back to main after a short delay
       setTimeout(() => onAdded(), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('add.errImport'));
@@ -199,7 +199,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     }
   }
 
-  // 저장
+  // Save
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -245,7 +245,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
     }
   }
 
-  // 태그 토글
+  // Toggle tag
   function toggleTag(tagId: string) {
     setSelectedTags((prev) =>
       prev.includes(tagId)
@@ -318,7 +318,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
       </div>
 
       <div className="p-4">
-        {/* URI 입력 탭 */}
+        {/* URI input tab */}
         {tabMode === 'uri' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -328,7 +328,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
                 value={uriInput}
                 onChange={(e) => setUriInput(e.target.value)}
                 placeholder={
-                  'otpauth://totp/Issuer:user@example.com?secret=...\n또는\notpauth-migration://offline?data=...'
+                  'otpauth://totp/Issuer:user@example.com?secret=...\nor\notpauth-migration://offline?data=...'
                 }
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
@@ -342,7 +342,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               {t('add.parseUri')}
             </Button>
 
-            {/* Migration 항목 리스트 */}
+            {/* Migration item list */}
             {migrationItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">
@@ -387,7 +387,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
           </div>
         )}
 
-        {/* QR 이미지 업로드 탭 */}
+        {/* QR image upload tab */}
         {tabMode === 'qr' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -413,7 +413,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               />
             </div>
 
-            {/* Migration 항목 리스트 (QR에서 migration URI 감지 시) */}
+            {/* Migration item list (when a migration URI is detected in the QR) */}
             {migrationItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">
@@ -458,7 +458,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
           </div>
         )}
 
-        {/* 화면 캡처 탭 */}
+        {/* Screen capture tab */}
         {tabMode === 'capture' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -479,7 +479,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
           </div>
         )}
 
-        {/* 수동 입력 폼 */}
+        {/* Manual input form */}
         {tabMode === 'manual' && (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-2">
@@ -580,7 +580,7 @@ export function AddOTPPage({ sessionKey, onBack, onAdded }: AddOTPPageProps) {
               )}
             </div>
 
-            {/* 태그 선택 */}
+            {/* Tag selection */}
             {tags.length > 0 && (
               <div className="space-y-2">
                 <Label>{t('add.tagsLabel')}</Label>

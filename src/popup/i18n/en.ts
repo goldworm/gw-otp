@@ -1,4 +1,4 @@
-/** 영어 번역 (번역 키의 기준) */
+/** English translations (the source of truth for translation keys) */
 export const en = {
   common: {
     back: 'Back',

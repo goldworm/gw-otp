@@ -9,7 +9,7 @@ import {
 import { translations, type Language } from './index';
 import { en } from './en';
 
-/** 중첩 객체의 leaf 경로를 'a.b.c' 형태의 문자열 유니온으로 만든다. */
+/** Build a string union of leaf paths ('a.b.c' form) from a nested object. */
 type NestedKeys<T, Prefix extends string = ''> = {
   [K in keyof T & string]: T[K] extends string
     ? `${Prefix}${K}`
@@ -18,7 +18,7 @@ type NestedKeys<T, Prefix extends string = ''> = {
 
 export type TranslationKey = NestedKeys<typeof en>;
 
-/** 보간 파라미터 */
+/** Interpolation parameters */
 type Params = Record<string, string | number>;
 
 interface I18nContextValue {
@@ -29,7 +29,7 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-/** 'a.b.c' 경로로 중첩 객체에서 값을 가져온다. */
+/** Resolve a value from a nested object using an 'a.b.c' path. */
 function resolveKey(obj: unknown, key: string): string {
   const parts = key.split('.');
   let current: unknown = obj;
@@ -37,13 +37,13 @@ function resolveKey(obj: unknown, key: string): string {
     if (current && typeof current === 'object' && part in current) {
       current = (current as Record<string, unknown>)[part];
     } else {
-      return key; // 키를 찾지 못하면 키 자체를 반환
+      return key; // Return the key itself if not found
     }
   }
   return typeof current === 'string' ? current : key;
 }
 
-/** {param} 형태의 플레이스홀더를 치환한다. */
+/** Replace placeholders of the form {param}. */
 function interpolate(template: string, params?: Params): string {
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) =>
@@ -64,7 +64,7 @@ export function I18nProvider({
 }: I18nProviderProps) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
 
-  // 상위(App)에서 비동기로 로드된 언어가 바뀌면 동기화
+  // Sync when the language loaded asynchronously by the parent (App) changes
   useEffect(() => {
     setLanguageState(initialLanguage);
   }, [initialLanguage]);

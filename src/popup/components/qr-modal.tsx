@@ -18,8 +18,8 @@ interface QRModalProps {
 }
 
 /**
- * OTP 정보를 otpauth:// URI로 만들어 QR 코드로 표시하는 모달.
- * 폰의 인증 앱으로 스캔하여 OTP를 등록할 수 있다.
+ * Modal that builds an otpauth:// URI from the OTP info and shows it as a QR code.
+ * Users can scan it with a phone authenticator app to register the OTP.
  */
 export function QRModal({
   type,
@@ -60,7 +60,7 @@ export function QRModal({
     generate();
   }, [type, issuer, label, secret, algorithm, digits, period, counter, t]);
 
-  // ESC로 닫기
+  // Close on ESC
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -81,7 +81,7 @@ export function QRModal({
         className="relative flex w-full max-w-[300px] flex-col items-center gap-3 rounded-lg bg-card p-5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 닫기 버튼 */}
+        {/* Close button */}
         <button
           type="button"
           onClick={onClose}
@@ -91,7 +91,7 @@ export function QRModal({
           <X className="h-4 w-4" />
         </button>
 
-        {/* 제목 */}
+        {/* Title */}
         <div className="text-center">
           <p className="text-sm font-semibold text-foreground">{issuer}</p>
           {label && (
@@ -99,7 +99,7 @@ export function QRModal({
           )}
         </div>
 
-        {/* QR 코드 */}
+        {/* QR code */}
         {error ? (
           <p className="py-8 text-sm text-destructive" role="alert">
             {error}
@@ -120,7 +120,7 @@ export function QRModal({
           </div>
         )}
 
-        {/* 안내 문구 */}
+        {/* Hint text */}
         <p className="text-center text-xs text-muted-foreground">
           {t('qrModal.scanHint')}
         </p>

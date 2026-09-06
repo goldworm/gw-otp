@@ -1,10 +1,11 @@
 /**
  * GW-OTP Background Service Worker
  *
- * 세션 관리: 마스터 비밀번호로 유도된 암호화 키를 메모리에 보관.
- * Service Worker가 종료되면 키가 자동 소멸되어 잠금 상태가 된다.
+ * Session management: keeps the encryption key derived from the master
+ * password in memory. When the Service Worker terminates, the key is
+ * automatically discarded and the app returns to the locked state.
  *
- * 이 모듈은 UI 관련 의존성이 없다.
+ * This module has no UI dependencies.
  */
 
 import type { MessageRequest, MessageResponse } from '@/types';
@@ -23,26 +24,26 @@ import {
   reencryptAllEntries,
 } from '@/core/storage';
 
-/** 자동 잠금 알람 이름 */
+/** Auto-lock alarm name */
 const AUTO_LOCK_ALARM = 'gw-otp-auto-lock';
 
-/** session storage 키 (SW 재시작 시 복원용) */
+/** session storage key (used to restore on SW restart) */
 const SESSION_KEY_STORAGE = 'gw-otp-session-key';
 
-/** 메모리에만 존재하는 세션 키 (디스크에 저장하지 않음) */
+/** Session key that lives only in memory (never persisted to disk) */
 let sessionKey: CryptoKey | null = null;
 
-/** 현재 잠금 해제 상태 */
+/** Whether the app is currently unlocked */
 let isUnlocked = false;
 
 /**
- * 세션 키를 chrome.storage.session에 저장한다 (SW 재시작 시 복원용).
- * autoLockMinutes가 0이 아닌 경우에만 저장한다.
+ * Persist the session key to chrome.storage.session (to restore on SW restart).
+ * Only persists when autoLockMinutes is not 0.
  */
 async function persistSessionKey(key: CryptoKey) {
   try {
-    // autoLockMinutes === 0 (팝업 닫을 때 즉시 잠금)이면 저장하지 않는다.
-    // SW 재시작 시 복원할 키가 없어 잠금 상태가 유지된다.
+    // If autoLockMinutes === 0 (lock immediately on popup close), do not persist.
+    // On SW restart there is no key to restore, so the locked state is kept.
     const settings = await loadSettings();
     if (settings?.autoLockMinutes === 0) {
       return;
@@ -57,12 +58,12 @@ async function persistSessionKey(key: CryptoKey) {
     const base64 = btoa(binary);
     await chrome.storage.session.set({ [SESSION_KEY_STORAGE]: base64 });
   } catch {
-    // session storage 미지원 환경에서는 무시
+    // Ignore on environments without session storage support
   }
 }
 
 /**
- * chrome.storage.session에서 세션 키를 복원한다.
+ * Restore the session key from chrome.storage.session.
  */
 async function restoreSessionKey(): Promise<CryptoKey | null> {
   try {
@@ -89,17 +90,17 @@ async function restoreSessionKey(): Promise<CryptoKey | null> {
 }
 
 /**
- * session storage에서 세션 키를 제거한다.
+ * Remove the session key from session storage.
  */
 async function clearPersistedSessionKey() {
   try {
     await chrome.storage.session.remove(SESSION_KEY_STORAGE);
   } catch {
-    // 무시
+    // Ignore
   }
 }
 
-// SW 시작 시 세션 복원
+// Restore the session when the SW starts
 restoreSessionKey().then((key) => {
   if (key) {
     sessionKey = key;
@@ -107,7 +108,8 @@ restoreSessionKey().then((key) => {
   }
 });
 
-// 팝업 연결 감지: 팝업이 닫히면(port disconnect) autoLockMinutes === 0일 때 즉시 잠금
+// Detect popup connection: when the popup closes (port disconnect),
+// lock immediately if autoLockMinutes === 0.
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== 'gw-otp-popup') return;
 
@@ -120,7 +122,7 @@ chrome.runtime.onConnect.addListener((port) => {
 });
 
 /**
- * 잠금 해제: 비밀번호 검증 후 세션 키를 메모리에 보관한다.
+ * Unlock: verify the password and keep the session key in memory.
  */
 async function handleUnlock(
   password: string,
@@ -129,7 +131,7 @@ async function handleUnlock(
     const settings = await loadSettings();
 
     if (!settings) {
-      // 초기화되지 않음 → 최초 비밀번호 설정
+      // Not initialized → set the password for the first time
       const saltBytes = generateSalt();
       const salt = bufferToBase64(saltBytes);
       const key = await deriveKey(password, saltBytes);
@@ -151,13 +153,13 @@ async function handleUnlock(
       return { success: true };
     }
 
-    // 기존 비밀번호 검증
+    // Verify the existing password
     const saltBytes = base64ToBuffer(settings.salt);
     const key = await deriveKey(password, saltBytes);
     const valid = await verifyPassword(settings.passwordHash, key);
 
     if (!valid) {
-      return { success: false, error: '비밀번호가 올바르지 않습니다.' };
+      return { success: false, error: 'The password is incorrect.' };
     }
 
     sessionKey = key;
@@ -174,7 +176,7 @@ async function handleUnlock(
 }
 
 /**
- * 잠금: 세션 키를 메모리에서 제거한다.
+ * Lock: remove the session key from memory.
  */
 function handleLock(): { success: boolean } {
   sessionKey = null;
@@ -185,33 +187,33 @@ function handleLock(): { success: boolean } {
 }
 
 /**
- * 자동 잠금 알람을 설정/리셋한다.
- * 팝업이 열릴 때마다 호출하여 타이머를 리셋한다.
+ * Set/reset the auto-lock alarm.
+ * Called whenever the popup opens to reset the timer.
  */
 async function resetAutoLockAlarm() {
   const settings = await loadSettings();
   const minutes = settings?.autoLockMinutes ?? 5;
 
-  // 기존 알람 제거
+  // Remove any existing alarm
   await chrome.alarms.clear(AUTO_LOCK_ALARM);
 
   if (minutes === 'never' || minutes === 0) {
-    // 'never'는 알람 없음 (수동 잠금만), 0은 즉시 잠금 (SW 종료 시)
+    // 'never' means no alarm (manual lock only); 0 means immediate lock (on SW termination)
     return;
   }
 
-  // 알람 설정
+  // Create the alarm
   chrome.alarms.create(AUTO_LOCK_ALARM, { delayInMinutes: minutes });
 }
 
 /**
- * 자동 잠금 알람을 제거한다.
+ * Remove the auto-lock alarm.
  */
 function clearAutoLockAlarm() {
   chrome.alarms.clear(AUTO_LOCK_ALARM);
 }
 
-// 알람 이벤트 리스너: 자동 잠금 실행
+// Alarm event listener: run the auto-lock
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_LOCK_ALARM) {
     handleLock();
@@ -219,7 +221,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 /**
- * 상태 조회: 현재 잠금 상태와 초기화 여부를 반환한다.
+ * Status query: return the current lock state and whether it is initialized.
  */
 async function handleGetStatus(): Promise<{
   isUnlocked: boolean;
@@ -233,8 +235,8 @@ async function handleGetStatus(): Promise<{
 }
 
 /**
- * 키 조회: 현재 세션 키를 raw base64로 반환한다.
- * 잠금 해제 상태에서 팝업이 재실행될 때 키를 복원하기 위해 사용한다.
+ * Key query: return the current session key as raw base64.
+ * Used to restore the key when the popup is reopened while unlocked.
  */
 async function handleGetKey(): Promise<{ key: string | null }> {
   if (!sessionKey) return { key: null };
@@ -252,8 +254,8 @@ async function handleGetKey(): Promise<{ key: string | null }> {
 }
 
 /**
- * 비밀번호 변경: 현재 비밀번호를 검증한 뒤 새 비밀번호로 재설정한다.
- * 저장된 모든 OTP secret을 새 키로 재암호화하고 세션 키를 갱신한다.
+ * Change password: verify the current password, then reset to the new one.
+ * Re-encrypts all stored OTP secrets with the new key and refreshes the session key.
  */
 async function handleChangePassword(
   currentPassword: string,
@@ -263,24 +265,24 @@ async function handleChangePassword(
     if (!isUnlocked || !sessionKey) {
       return {
         success: false,
-        error: '잠금 해제 상태에서만 변경할 수 있습니다.',
+        error: 'The password can only be changed while unlocked.',
       };
     }
 
     const settings = await loadSettings();
     if (!settings) {
-      return { success: false, error: '설정을 불러올 수 없습니다.' };
+      return { success: false, error: 'Could not load settings.' };
     }
 
-    // 현재 비밀번호 검증
+    // Verify the current password
     const oldSaltBytes = base64ToBuffer(settings.salt);
     const oldKey = await deriveKey(currentPassword, oldSaltBytes);
     const valid = await verifyPassword(settings.passwordHash, oldKey);
     if (!valid) {
-      return { success: false, error: '현재 비밀번호가 올바르지 않습니다.' };
+      return { success: false, error: 'The current password is incorrect.' };
     }
 
-    // 새 salt + 키 생성 및 전체 재암호화
+    // Generate a new salt + key and re-encrypt everything
     const {
       salt,
       passwordHash,
@@ -288,7 +290,7 @@ async function handleChangePassword(
     } = await initializePassword(newPassword);
     await reencryptAllEntries(oldKey, newKey, salt, passwordHash);
 
-    // 세션 키 갱신
+    // Refresh the session key
     sessionKey = newKey;
     return { success: true };
   } catch (err) {
@@ -300,7 +302,7 @@ async function handleChangePassword(
 }
 
 /**
- * 메시지 핸들러: Popup으로부터의 메시지를 처리한다.
+ * Message handler: processes messages from the Popup.
  */
 export function handleMessage(
   request: MessageRequest,
@@ -345,15 +347,15 @@ export function handleMessage(
       break;
     }
   }
-  // true를 반환하여 비동기 sendResponse 허용
+  // Return true to allow an asynchronous sendResponse
   return true;
 }
 
 chrome.runtime.onMessage.addListener(handleMessage);
 
 /**
- * 세션 키를 가져온다 (core 모듈에서 암호화/복호화 시 사용).
- * Background 내부에서만 호출한다.
+ * Get the session key (used by core modules for encryption/decryption).
+ * Only called from within the Background.
  */
 export function getSessionKey(): CryptoKey | null {
   return sessionKey;

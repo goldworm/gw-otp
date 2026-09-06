@@ -79,10 +79,10 @@ export function OTPCard({
     }
   }, [isHOTP, secret, counter, algorithm, digits, period]);
 
-  // TOTP: 매 초 갱신, HOTP: counter가 바뀔 때만 갱신
+  // TOTP: refresh every second; HOTP: refresh only when the counter changes
   useEffect(() => {
     refreshCode();
-    if (isHOTP) return; // HOTP는 자동 갱신하지 않음
+    if (isHOTP) return; // HOTP does not auto-refresh
 
     const interval = setInterval(() => {
       refreshCode();
@@ -90,7 +90,7 @@ export function OTPCard({
     return () => clearInterval(interval);
   }, [refreshCode, isHOTP]);
 
-  // 클립보드 복사
+  // Copy to clipboard
   async function handleCopy() {
     if (!code || code === '------') return;
     try {
@@ -109,7 +109,7 @@ export function OTPCard({
     }
   }
 
-  // 코드 포맷 (3자리씩 분리)
+  // Format the code (split into groups)
   function formatCode(raw: string): string {
     if (raw.length === 6) return `${raw.slice(0, 3)} ${raw.slice(3)}`;
     if (raw.length === 8) return `${raw.slice(0, 4)} ${raw.slice(4)}`;
@@ -130,7 +130,7 @@ export function OTPCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* 왼쪽 인디케이터: TOTP는 카운트다운, HOTP는 카운터 아이콘 */}
+      {/* Left indicator: countdown for TOTP, counter icon for HOTP */}
       {isHOTP ? (
         <div
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground"
@@ -178,11 +178,11 @@ export function OTPCard({
       <div
         className={cn(
           'flex items-center gap-0.5 transition-opacity',
-          // 고정된 항목은 pin 버튼이 항상 보이도록, 그 외에는 hover 시 노출
+          // Pinned items always show the buttons; others reveal them on hover
           pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
         )}
       >
-        {/* HOTP: 다음 코드 생성 버튼 */}
+        {/* HOTP: generate-next-code button */}
         {isHOTP && (
           <button
             type="button"
@@ -239,7 +239,7 @@ export function OTPCard({
         </button>
       </div>
 
-      {/* QR 모달 */}
+      {/* QR modal */}
       {showQR && (
         <QRModal
           type={type}

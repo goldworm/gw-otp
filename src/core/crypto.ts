@@ -1,29 +1,29 @@
 /**
- * 암호화 모듈 (Web Crypto API)
+ * Cryptography module (Web Crypto API)
  *
- * - PBKDF2로 마스터 비밀번호에서 AES-256 키 유도
- * - AES-GCM으로 데이터 암호화/복호화
- * - 비밀번호 검증을 위한 해시 생성/확인
+ * - Derive an AES-256 key from the master password using PBKDF2
+ * - Encrypt/decrypt data with AES-GCM
+ * - Create/verify a hash used for password verification
  *
- * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
+ * This module is pure TypeScript and has no UI dependencies.
  */
 
-/** PBKDF2 반복 횟수 (brute-force 방어) */
+/** PBKDF2 iteration count (brute-force resistance) */
 const PBKDF2_ITERATIONS = 600_000;
 
-/** salt 길이 (bytes) */
+/** Salt length (bytes) */
 const SALT_LENGTH = 16;
 
-/** AES-GCM IV 길이 (bytes) */
+/** AES-GCM IV length (bytes) */
 const IV_LENGTH = 12;
 
-/** 비밀번호 검증용 고정 문자열 */
+/** Fixed plaintext used for password verification */
 const VERIFY_PLAINTEXT = 'gw-otp-verify';
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
- * Uint8Array를 Base64 문자열로 변환
+ * Convert a Uint8Array to a Base64 string.
  */
 export function bufferToBase64(buffer: Uint8Array): string {
   let binary = '';
@@ -34,7 +34,7 @@ export function bufferToBase64(buffer: Uint8Array): string {
 }
 
 /**
- * Base64 문자열을 Uint8Array로 변환
+ * Convert a Base64 string to a Uint8Array.
  */
 export function base64ToBuffer(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -48,18 +48,18 @@ export function base64ToBuffer(base64: string): Uint8Array {
 // ─── Key Derivation ──────────────────────────────────────────────────────────
 
 /**
- * 랜덤 salt 생성
+ * Generate a random salt.
  */
 export function generateSalt(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
 }
 
 /**
- * PBKDF2로 마스터 비밀번호에서 AES-256-GCM 키를 유도한다.
+ * Derive an AES-256-GCM key from the master password using PBKDF2.
  *
- * @param password - 마스터 비밀번호
- * @param salt - PBKDF2 salt (Uint8Array)
- * @returns CryptoKey (AES-GCM 256-bit)
+ * @param password - the master password
+ * @param salt - the PBKDF2 salt (Uint8Array)
+ * @returns a CryptoKey (AES-GCM 256-bit)
  */
 export async function deriveKey(
   password: string,
@@ -89,11 +89,11 @@ export async function deriveKey(
 }
 
 /**
- * raw base64로 인코딩된 AES-GCM 키를 CryptoKey로 복원한다.
- * Background에서 전달받은 세션 키를 Popup에서 복원할 때 사용한다.
+ * Restore a raw base64-encoded AES-GCM key back into a CryptoKey.
+ * Used by the popup to restore the session key passed from the background.
  *
- * @param base64 - raw 키의 Base64 인코딩
- * @returns CryptoKey (AES-GCM 256-bit)
+ * @param base64 - the Base64 encoding of the raw key
+ * @returns a CryptoKey (AES-GCM 256-bit)
  */
 export async function importKeyFromBase64(base64: string): Promise<CryptoKey> {
   const bytes = base64ToBuffer(base64);
@@ -109,13 +109,13 @@ export async function importKeyFromBase64(base64: string): Promise<CryptoKey> {
 // ─── Encrypt / Decrypt ───────────────────────────────────────────────────────
 
 /**
- * AES-256-GCM으로 평문을 암호화한다.
+ * Encrypt plaintext with AES-256-GCM.
  *
- * 반환값: Base64(IV(12 bytes) + ciphertext + authTag(16 bytes))
+ * Return value: Base64(IV(12 bytes) + ciphertext + authTag(16 bytes))
  *
- * @param plaintext - 암호화할 평문
- * @param key - AES-GCM CryptoKey
- * @returns Base64 인코딩된 암호문
+ * @param plaintext - the plaintext to encrypt
+ * @param key - the AES-GCM CryptoKey
+ * @returns the Base64-encoded ciphertext
  */
 export async function encrypt(
   plaintext: string,
@@ -131,7 +131,7 @@ export async function encrypt(
     data,
   );
 
-  // IV + ciphertext (authTag 포함)를 결합
+  // Concatenate IV + ciphertext (which includes the authTag)
   const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(ciphertext), iv.byteLength);
@@ -140,12 +140,12 @@ export async function encrypt(
 }
 
 /**
- * AES-256-GCM으로 암호문을 복호화한다.
+ * Decrypt ciphertext with AES-256-GCM.
  *
  * @param encryptedBase64 - Base64(IV + ciphertext + authTag)
- * @param key - AES-GCM CryptoKey
- * @returns 복호화된 평문
- * @throws 키가 올바르지 않거나 데이터가 변조된 경우
+ * @param key - the AES-GCM CryptoKey
+ * @returns the decrypted plaintext
+ * @throws if the key is incorrect or the data has been tampered with
  */
 export async function decrypt(
   encryptedBase64: string,
@@ -168,23 +168,23 @@ export async function decrypt(
 // ─── Password Verification ───────────────────────────────────────────────────
 
 /**
- * 마스터 비밀번호 검증용 해시를 생성한다.
- * 고정 문자열("gw-otp-verify")을 암호화한 결과를 저장하여
- * 이후 비밀번호 입력 시 복호화 성공 여부로 검증한다.
+ * Create a verification hash for the master password.
+ * Stores the ciphertext of a fixed string ("gw-otp-verify") so that a later
+ * password attempt can be verified by whether decryption succeeds.
  *
- * @param key - 유도된 CryptoKey
- * @returns Base64 인코딩된 검증 암호문
+ * @param key - the derived CryptoKey
+ * @returns the Base64-encoded verification ciphertext
  */
 export async function createPasswordHash(key: CryptoKey): Promise<string> {
   return encrypt(VERIFY_PLAINTEXT, key);
 }
 
 /**
- * 마스터 비밀번호가 올바른지 검증한다.
+ * Verify whether the master password is correct.
  *
- * @param passwordHash - 저장된 검증 암호문 (Base64)
- * @param key - 입력된 비밀번호로 유도한 CryptoKey
- * @returns 비밀번호가 올바르면 true
+ * @param passwordHash - the stored verification ciphertext (Base64)
+ * @param key - the CryptoKey derived from the entered password
+ * @returns true if the password is correct
  */
 export async function verifyPassword(
   passwordHash: string,
@@ -194,7 +194,7 @@ export async function verifyPassword(
     const decrypted = await decrypt(passwordHash, key);
     return decrypted === VERIFY_PLAINTEXT;
   } catch {
-    // 복호화 실패 = 비밀번호 불일치
+    // Decryption failure = password mismatch
     return false;
   }
 }
@@ -202,11 +202,11 @@ export async function verifyPassword(
 // ─── High-level API ──────────────────────────────────────────────────────────
 
 /**
- * 최초 비밀번호 설정 시 호출.
- * salt와 passwordHash를 생성하여 반환한다.
+ * Called when the password is set for the first time.
+ * Generates and returns the salt and passwordHash.
  *
- * @param password - 마스터 비밀번호
- * @returns { salt, passwordHash, key } - storage에 저장할 값들과 세션 키
+ * @param password - the master password
+ * @returns { salt, passwordHash, key } - values to persist plus the session key
  */
 export async function initializePassword(password: string): Promise<{
   salt: string;
@@ -225,14 +225,14 @@ export async function initializePassword(password: string): Promise<{
 }
 
 /**
- * 잠금 해제 시 호출.
- * 저장된 salt와 passwordHash를 사용하여 비밀번호를 검증하고,
- * 성공 시 세션 키를 반환한다.
+ * Called when unlocking.
+ * Verifies the password using the stored salt and passwordHash, and returns
+ * the session key on success.
  *
- * @param password - 입력된 비밀번호
- * @param saltBase64 - 저장된 salt (Base64)
- * @param passwordHash - 저장된 검증 암호문 (Base64)
- * @returns CryptoKey (성공 시) 또는 null (실패 시)
+ * @param password - the entered password
+ * @param saltBase64 - the stored salt (Base64)
+ * @param passwordHash - the stored verification ciphertext (Base64)
+ * @returns a CryptoKey (on success) or null (on failure)
  */
 export async function unlockWithPassword(
   password: string,

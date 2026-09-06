@@ -38,9 +38,9 @@ export function OTPList({
   onGenerateNext,
 }: OTPListProps) {
   const { t } = useI18n();
-  // 드래그 중인 항목의 인덱스
+  // Index of the item being dragged
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  // 드롭 대상(드래그가 위에 있는) 인덱스
+  // Index of the drop target (the item the drag is hovering over)
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
   function moveUp(index: number) {
@@ -68,12 +68,12 @@ export function OTPList({
   function handleDragStart(e: React.DragEvent, index: number) {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    // Firefox는 dataTransfer에 데이터가 있어야 드래그가 시작됨
+    // Firefox requires data in dataTransfer for the drag to start
     e.dataTransfer.setData('text/plain', String(index));
   }
 
   function handleDragOver(e: React.DragEvent, index: number) {
-    e.preventDefault(); // drop을 허용하기 위해 필수
+    e.preventDefault(); // Required to allow dropping
     e.dataTransfer.dropEffect = 'move';
     if (index !== overIndex) {
       setOverIndex(index);
@@ -112,7 +112,7 @@ export function OTPList({
           onDragOver={(e) => handleDragOver(e, index)}
           onDrop={(e) => handleDrop(e, index)}
         >
-          {/* 순서 변경 컨트롤: 화살표 + 드래그 핸들 */}
+          {/* Reorder controls: arrows + drag handle */}
           <div className="flex flex-shrink-0 flex-col items-center">
             <button
               type="button"
@@ -124,7 +124,7 @@ export function OTPList({
               <ChevronUp className="h-3.5 w-3.5" />
             </button>
 
-            {/* 드래그 핸들 (HTML5 draggable) */}
+            {/* Drag handle (HTML5 draggable) */}
             <div
               draggable
               onDragStart={(e) => handleDragStart(e, index)}
@@ -147,7 +147,7 @@ export function OTPList({
             </button>
           </div>
 
-          {/* OTP 카드 */}
+          {/* OTP card */}
           <div className="min-w-0 flex-1">
             <OTPCard
               id={item.id}

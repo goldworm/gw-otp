@@ -1,12 +1,12 @@
 /**
- * Google Authenticator Migration URI 파싱 모듈
+ * Google Authenticator migration URI parsing module
  *
- * otpauth-migration://offline?data=<base64> 형식의 URI를 파싱하여
- * 여러 OTP 항목을 한 번에 추출한다.
+ * Parses URIs of the form otpauth-migration://offline?data=<base64> and
+ * extracts multiple OTP entries at once.
  *
- * 내부적으로 Protocol Buffers 수동 디코딩을 사용한다 (경량 구현).
+ * Internally uses a manual Protocol Buffers decoder (a lightweight implementation).
  *
- * 이 모듈은 순수 TypeScript이며 UI 관련 의존성이 없다.
+ * This module is pure TypeScript and has no UI dependencies.
  */
 
 import type { Algorithm, Digits, ParsedOTPAuthURI } from '@/types';
@@ -20,17 +20,17 @@ interface OtpParameters {
   algorithm: number; // 0=unspecified, 1=SHA1, 2=SHA256, 3=SHA512
   digits: number; // 0=unspecified, 1=SIX, 2=EIGHT
   type: number; // 0=unspecified, 1=HOTP, 2=TOTP
-  counter: number; // HOTP 카운터 (field 7)
+  counter: number; // HOTP counter (field 7)
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * otpauth-migration:// URI를 파싱하여 OTP 항목 목록을 반환한다.
+ * Parse an otpauth-migration:// URI and return the list of OTP entries.
  *
- * @param uri - otpauth-migration://offline?data=... 형식의 URI
- * @returns 파싱된 OTP 항목 배열
- * @throws URI 형식이 잘못된 경우
+ * @param uri - a URI of the form otpauth-migration://offline?data=...
+ * @returns the parsed array of OTP entries
+ * @throws if the URI format is invalid
  */
 export function parseMigrationURI(uri: string): ParsedOTPAuthURI[] {
   const trimmed = uri.trim();
@@ -41,30 +41,30 @@ export function parseMigrationURI(uri: string): ParsedOTPAuthURI[] {
     );
   }
 
-  // data 파라미터 추출
+  // Extract the data parameter
   const url = new URL(trimmed);
   const dataParam = url.searchParams.get('data');
   if (!dataParam) {
     throw new Error('Invalid migration URI: missing "data" parameter');
   }
 
-  // Base64 디코딩
+  // Base64 decode
   const binaryStr = atob(dataParam);
   const bytes = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) {
     bytes[i] = binaryStr.charCodeAt(i);
   }
 
-  // Protobuf 디코딩
+  // Protobuf decode
   const otpParams = decodeMigrationPayload(bytes);
 
-  // ParsedOTPAuthURI로 변환
-  // TOTP(2)와 HOTP(1) 모두 지원. unspecified(0)는 TOTP로 취급.
+  // Convert to ParsedOTPAuthURI
+  // Both TOTP(2) and HOTP(1) are supported. unspecified(0) is treated as TOTP.
   return otpParams.map((p) => convertToOTPAuthURI(p));
 }
 
 /**
- * 주어진 URI가 otpauth-migration:// 형식인지 확인한다.
+ * Check whether the given URI is in otpauth-migration:// format.
  */
 export function isMigrationURI(uri: string): boolean {
   return uri.trim().startsWith('otpauth-migration://');
@@ -73,7 +73,7 @@ export function isMigrationURI(uri: string): boolean {
 // ─── Protobuf Decoding ───────────────────────────────────────────────────────
 
 /**
- * MigrationPayload protobuf 메시지에서 otp_parameters (field 1) 를 추출한다.
+ * Extract otp_parameters (field 1) from a MigrationPayload protobuf message.
  */
 function decodeMigrationPayload(data: Uint8Array): OtpParameters[] {
   const results: OtpParameters[] = [];
@@ -84,12 +84,12 @@ function decodeMigrationPayload(data: Uint8Array): OtpParameters[] {
     offset = newOffset;
 
     if (fieldNumber === 1 && wireType === 2) {
-      // length-delimited: OtpParameters 메시지
+      // length-delimited: OtpParameters message
       const { value, newOffset: nextOffset } = readBytes(data, offset);
       offset = nextOffset;
       results.push(decodeOtpParameters(value));
     } else {
-      // 다른 필드는 건너뛰기
+      // Skip other fields
       offset = skipField(data, offset, wireType);
     }
   }
@@ -98,7 +98,7 @@ function decodeMigrationPayload(data: Uint8Array): OtpParameters[] {
 }
 
 /**
- * OtpParameters protobuf 메시지를 디코딩한다.
+ * Decode an OtpParameters protobuf message.
  */
 function decodeOtpParameters(data: Uint8Array): OtpParameters {
   const result: OtpParameters = {
@@ -159,7 +159,7 @@ function decodeOtpParameters(data: Uint8Array): OtpParameters {
           result.type = value;
         }
         break;
-      case 7: // counter (varint, HOTP 전용)
+      case 7: // counter (varint, HOTP only)
         if (wireType === 0) {
           const { value, newOffset: nextOffset } = readVarint(data, offset);
           offset = nextOffset;
@@ -251,13 +251,13 @@ function skipField(data: Uint8Array, offset: number, wireType: number): number {
 // ─── Conversion ──────────────────────────────────────────────────────────────
 
 /**
- * OtpParameters를 ParsedOTPAuthURI로 변환한다.
+ * Convert OtpParameters to a ParsedOTPAuthURI.
  */
 function convertToOTPAuthURI(params: OtpParameters): ParsedOTPAuthURI {
-  // secret을 Base32로 인코딩
+  // Encode the secret to Base32
   const secret = base32Encode(params.secret);
 
-  // name 파싱: "Issuer:Label" 또는 "Label"
+  // Parse name: "Issuer:Label" or "Label"
   let issuer = params.issuer;
   let label = params.name;
 
@@ -270,13 +270,13 @@ function convertToOTPAuthURI(params: OtpParameters): ParsedOTPAuthURI {
     }
   }
 
-  // algorithm 매핑
+  // Map the algorithm
   const algorithm = mapAlgorithm(params.algorithm);
 
-  // digits 매핑
+  // Map the digits
   const digits = mapDigits(params.digits);
 
-  // type 매핑: 1=HOTP, 그 외(2=TOTP, 0=unspecified)=TOTP
+  // Map the type: 1=HOTP, otherwise (2=TOTP, 0=unspecified)=TOTP
   if (params.type === 1) {
     return {
       type: 'hotp',
@@ -297,7 +297,7 @@ function convertToOTPAuthURI(params: OtpParameters): ParsedOTPAuthURI {
     secret,
     algorithm,
     digits,
-    period: 30, // Google Authenticator는 항상 30초
+    period: 30, // Google Authenticator always uses 30 seconds
   };
 }
 
@@ -308,7 +308,7 @@ function mapAlgorithm(value: number): Algorithm {
     case 3:
       return 'SHA512';
     default:
-      return 'SHA1'; // 0 (unspecified) 또는 1 (SHA1)
+      return 'SHA1'; // 0 (unspecified) or 1 (SHA1)
   }
 }
 
@@ -317,7 +317,7 @@ function mapDigits(value: number): Digits {
     case 2:
       return 8;
     default:
-      return 6; // 0 (unspecified) 또는 1 (SIX)
+      return 6; // 0 (unspecified) or 1 (SIX)
   }
 }
 
@@ -326,7 +326,7 @@ function mapDigits(value: number): Digits {
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 /**
- * Uint8Array를 Base32 문자열로 인코딩한다 (RFC 4648).
+ * Encode a Uint8Array to a Base32 string (RFC 4648).
  */
 function base32Encode(data: Uint8Array): string {
   let result = '';
